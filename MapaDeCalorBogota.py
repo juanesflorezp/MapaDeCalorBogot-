@@ -11,7 +11,7 @@ st.title("\ud83d\udccd Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá"
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
