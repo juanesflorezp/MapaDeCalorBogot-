@@ -10,193 +10,212 @@ import folium
 from folium.plugins import HeatMap
 import os
 
-st.title("📍 Mapa de Lugares Específicos en Bogotá")  # Título modificado
+# Configuración de la página
+st.set_page_config(layout="wide")
+st.title("📍 Mapa de Lugares Específicos en Bogotá")
 
-# Cargar variables de entorno
+# Cargar API Key
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"  # Asegúrate de tener esto en tu .env
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" 
 
 if not API_KEY:
-    st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
+    st.error("API Key no encontrada. Por favor define GOOGLE_MAPS_API_KEY en tu archivo .env")
     st.stop()
 
-# Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
 # Configuración fija para Bogotá
-ciudad_seleccionada = "Bogotá"
-ubicacion_ciudad = [4.60971, -74.08175]  # Coordenadas de Bogotá
+UBICACION_BOGOTA = [4.60971, -74.08175]
+RADIO_DEFAULT = 1000  # Radio por defecto aumentado para mejor cobertura
 
-# Input para definir el radio de búsqueda
-radio = st.slider("Selecciona el radio de búsqueda (metros):", min_value=100, max_value=5000, value=500, step=100)
+# Lista de estaciones de Transmilenio (puedes agregar más)
+ESTACIONES_TRANSMILENIO = [
+    "Portal 80", "Portal Américas", "Portal Eldorado", "Portal Norte",
+    "Portal Suba", "Portal Sur", "Portal Tunal", "Calle 100",
+    "Calle 72", "Calle 45", "Calle 26", "Calle 19", "Calle 22",
+    "Museo del Oro", "Av. Jiménez", "Universidades", "Santander",
+    "Héroes", "Paloquemao", "Restrepo", "Alcalá", "Calle 127",
+    "Toberín", "Usaquén", "Cedritos", "Pepe Sierra", "Calle 146"
+]
 
-# Opción para elegir método de búsqueda
-opcion_busqueda = st.radio("¿Cómo quieres buscar?", ("Usar dirección escrita", "Usar ubicación del mapa"))
+# Configuración de la UI
+with st.sidebar:
+    st.header("Configuración de Búsqueda")
+    radio = st.slider("Radio de búsqueda (metros):", 100, 5000, RADIO_DEFAULT, 100)
+    opcion_busqueda = st.radio("Método de búsqueda:", ["Usar dirección escrita", "Usar ubicación del mapa"])
+    direccion = st.text_input("Ingresa una dirección en Bogotá:", "")
 
-# Input para ingresar dirección (opcional)
-direccion = st.text_input("Ingresa una dirección en Bogotá (opcional):", "")
-
-# Inicializar session_state si no existe
-if "ubicacion_usuario" not in st.session_state:
-    st.session_state["ubicacion_usuario"] = None
-if "direccion_obtenida" not in st.session_state:
-    st.session_state["direccion_obtenida"] = ""
-
-# Crear mapa base solo una vez
-mapa = folium.Map(location=ubicacion_ciudad, zoom_start=14)
-
-# Mostrar mapa interactivo con `st_folium`
-mapa_data = st_folium(mapa, width=700, height=500)
-
-# Si el usuario ha hecho clic en una nueva ubicación
-if mapa_data["last_clicked"]:
-    lat, lon = mapa_data["last_clicked"]["lat"], mapa_data["last_clicked"]["lng"]
-    
-    # Solo actualizar session_state si la ubicación cambia
-    if st.session_state["ubicacion_usuario"] != (lat, lon):
-        st.session_state["ubicacion_usuario"] = (lat, lon)
-
-        # Obtener dirección inversa con Google Maps
-        try:
-            reverse_geocode_result = gmaps.reverse_geocode((lat, lon))
-            if reverse_geocode_result:
-                st.session_state["direccion_obtenida"] = reverse_geocode_result[0]["formatted_address"]
-                st.success(f"Ubicación seleccionada: {st.session_state['direccion_obtenida']}")
-        except Exception as e:
-            st.warning(f"Error al obtener dirección: {e}")
-
-# Mostrar la dirección obtenida en el campo de texto
-direccion = st.text_input("Dirección seleccionada:", st.session_state["direccion_obtenida"])
-
-# Botón para iniciar la búsqueda
-if st.button("Iniciar Búsqueda"):
-
-    # Buscar con dirección escrita
-    if opcion_busqueda == "Usar dirección escrita" and direccion:
-        try:
-            geocode_result = gmaps.geocode(direccion + ", Bogotá, Colombia")  # Forzar búsqueda en Bogotá
-            if geocode_result:
-                lat = geocode_result[0]["geometry"]["location"]["lat"]
-                lon = geocode_result[0]["geometry"]["location"]["lng"]
-                st.success(f"Ubicación obtenida de la dirección: {lat}, {lon}")
-            else:
-                st.error("No se encontraron coordenadas para la dirección.")
-                st.stop()
-        except Exception as e:
-            st.error(f"Error al obtener coordenadas: {e}")
-            st.stop()
-
-    # Buscar con ubicación del mapa
-    elif opcion_busqueda == "Usar ubicación del mapa" and st.session_state["ubicacion_usuario"]:
-        lat, lon = st.session_state["ubicacion_usuario"]
-    else:
-        st.warning("Debes seleccionar una ubicación en el mapa o ingresar una dirección.")
-        st.stop()
-
-    user_location = (lat, lon)
-
-    # Obtener lugares cercanos (solo restaurantes, oficinas y estaciones de Transmilenio)
+# Función para buscar estaciones de Transmilenio
+def buscar_transmilenio(location, radius):
     try:
-        categories = ["restaurant", "office", "bus_station"]  # Categorías modificadas
+        resultados = []
+        # Búsqueda por nombres conocidos
+        for estacion in ESTACIONES_TRANSMILENIO:
+            time.sleep(0.1)  # Pequeña pausa para evitar límites de la API
+            try:
+                places_result = gmaps.places(
+                    query=f"Estación {estacion} Transmilenio",
+                    location=location,
+                    radius=radius
+                )
+                resultados.extend(places_result.get("results", []))
+            except:
+                continue
+        
+        # Búsqueda genérica
+        try:
+            places_result = gmaps.places_nearby(
+                location=location,
+                radius=radius,
+                type="transit_station",
+                keyword="Transmilenio"
+            )
+            resultados.extend(places_result.get("results", []))
+        except:
+            pass
+        
+        # Eliminar duplicados
+        seen = set()
+        return [x for x in resultados if x['place_id'] not in seen and not seen.add(x['place_id'])]
+    except Exception as e:
+        st.warning(f"Error al buscar Transmilenio: {str(e)}")
+        return []
 
-        @st.cache_data(show_spinner="Buscando lugares cercanos...")
-        def get_all_places(place_type, location, radius):
-            places = []
-            next_page_token = None
-            while True:
-                try:
-                    if next_page_token:
-                        time.sleep(2)
-                        places_result = gmaps.places_nearby(
-                            location=location, radius=radius, type=place_type, page_token=next_page_token
-                        )
-                    else:
-                        places_result = gmaps.places_nearby(
-                            location=location, radius=radius, type=place_type
-                        )
+# Función para buscar oficinas (mejorada)
+def buscar_oficinas(location, radius):
+    try:
+        # Búsqueda por tipo 'office'
+        results = gmaps.places_nearby(
+            location=location,
+            radius=radius,
+            type="office"
+        ).get("results", [])
+        
+        # Búsqueda adicional por palabras clave comunes
+        keywords = ["edificio oficinas", "torre empresarial", "centro de negocios"]
+        for keyword in keywords:
+            time.sleep(0.1)
+            try:
+                more_results = gmaps.places_nearby(
+                    location=location,
+                    radius=radius,
+                    keyword=keyword
+                ).get("results", [])
+                results.extend(more_results)
+            except:
+                continue
+        
+        # Filtrar solo resultados que parezcan oficinas
+        filtered = []
+        for place in results:
+            types = place.get("types", [])
+            if 'office' in types or any(word in place['name'].lower() for word in ['oficina', 'edificio', 'torre', 'empresarial']):
+                filtered.append(place)
+        
+        # Eliminar duplicados
+        seen = set()
+        return [x for x in filtered if x['place_id'] not in seen and not seen.add(x['place_id'])]
+    except Exception as e:
+        st.warning(f"Error al buscar oficinas: {str(e)}")
+        return []
 
-                    places.extend(places_result.get("results", []))
-                    next_page_token = places_result.get("next_page_token")
+# Mapa interactivo
+mapa = folium.Map(location=UBICACION_BOGOTA, zoom_start=13)
+mapa_data = st_folium(mapa, width=1200, height=600)
 
-                    if not next_page_token:
-                        break
-                except Exception as e:
-                    st.warning(f"Error al obtener lugares para {place_type}: {e}")
-                    break
-            return places
+# Manejo de ubicación
+ubicacion_usuario = None
+if mapa_data["last_clicked"]:
+    ubicacion_usuario = (mapa_data["last_clicked"]["lat"], mapa_data["last_clicked"]["lng"])
+    st.success(f"Ubicación seleccionada: {ubicacion_usuario}")
 
-        places_data = []
-        with st.status("Obteniendo lugares...", expanded=True) as status:
-            for category in categories:
-                places = get_all_places(category, user_location, radius=radio)
-                # Filtrar solo resultados en Bogotá (aproximadamente)
-                places = [p for p in places if 4.4 <= p["geometry"]["location"]["lat"] <= 4.8 and 
-                         -74.2 <= p["geometry"]["location"]["lng"] <= -73.9]
-                places_data.extend(places)
-                
-                # Traducción de categorías para mostrar
-                category_name = {
-                    "restaurant": "Restaurantes",
-                    "office": "Oficinas",
-                    "bus_station": "Estaciones de Transmilenio"
-                }.get(category, category)
-                
-                st.write(f"{len(places)} lugares encontrados en {category_name}")
+if opcion_busqueda == "Usar dirección escrita" and direccion:
+    try:
+        geocode_result = gmaps.geocode(f"{direccion}, Bogotá, Colombia")
+        if geocode_result:
+            ubicacion_usuario = (
+                geocode_result[0]["geometry"]["location"]["lat"],
+                geocode_result[0]["geometry"]["location"]["lng"]
+            )
+            st.success(f"Ubicación encontrada: {ubicacion_usuario}")
+    except Exception as e:
+        st.error(f"Error al geocodificar: {str(e)}")
 
-            status.update(label="Lugares obtenidos con éxito", state="complete")
+# Botón de búsqueda
+if st.button("Buscar Lugares") and ubicacion_usuario:
+    with st.spinner("Realizando búsqueda..."):
+        try:
+            # Realizar todas las búsquedas
+            restaurantes = gmaps.places_nearby(
+                location=ubicacion_usuario,
+                radius=radio,
+                type="restaurant"
+            ).get("results", [])
+            
+            oficinas = buscar_oficinas(ubicacion_usuario, radio)
+            transmilenio = buscar_transmilenio(ubicacion_usuario, radio)
 
-        # Diccionario de iconos por categoría
-        iconos_categorias = {
-            "restaurant": {"icon": "cutlery", "color": "red", "name": "Restaurante"},
-            "office": {"icon": "briefcase", "color": "blue", "name": "Oficina"},
-            "bus_station": {"icon": "bus", "color": "green", "name": "Transmilenio"},
-        }
+            # Configuración de iconos
+            iconos = {
+                "restaurant": {"icon": "cutlery", "color": "red", "name": "Restaurante"},
+                "office": {"icon": "briefcase", "color": "blue", "name": "Oficina"},
+                "transmilenio": {"icon": "bus", "color": "green", "name": "Transmilenio"}
+            }
 
-        # Crear mapa con Folium y agregar los lugares encontrados
-        mapa = folium.Map(location=user_location, zoom_start=16)
-        folium.Marker(
-            location=user_location,
-            popup="Ubicación seleccionada",
-            icon=folium.Icon(color="red", icon="star", prefix="glyphicon")
-        ).add_to(mapa)
+            # Crear mapa
+            mapa_resultados = folium.Map(location=ubicacion_usuario, zoom_start=15)
+            
+            # Añadir marcador de ubicación seleccionada
+            folium.Marker(
+                location=ubicacion_usuario,
+                popup="Tu ubicación",
+                icon=folium.Icon(color="black", icon="star")
+            ).add_to(mapa_resultados)
 
-        if places_data:
-            for place in places_data:
-                place_types = place.get("types", [])
-                categoria_valida = next((c for c in categories if c in place_types), None)
+            # Añadir resultados al mapa
+            for lugar, tipo in [(r, "restaurant") for r in restaurantes] + \
+                             [(o, "office") for o in oficinas] + \
+                             [(t, "transmilenio") for t in transmilenio]:
+                folium.Marker(
+                    location=[lugar["geometry"]["location"]["lat"], lugar["geometry"]["location"]["lng"]],
+                    popup=f"<b>{lugar['name']}</b><br>{iconos[tipo]['name']}",
+                    icon=folium.Icon(color=iconos[tipo]["color"], icon=iconos[tipo]["icon"], prefix="fa")
+                ).add_to(mapa_resultados)
 
-                if categoria_valida:
-                    icono_info = iconos_categorias.get(categoria_valida, {"icon": "info-sign", "color": "gray", "name": "Otro"})
+            # Añadir heatmap
+            heat_data = [
+                [lugar["geometry"]["location"]["lat"], lugar["geometry"]["location"]["lng"]]
+                for lugar in restaurantes + oficinas + transmilenio
+            ]
+            HeatMap(heat_data).add_to(mapa_resultados)
 
-                    folium.Marker(
-                        location=[place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]],
-                        popup=f"{place['name']} ({icono_info['name']})\nRating: {place.get('rating', 'N/A')}",
-                        icon=folium.Icon(color=icono_info["color"], icon=icono_info["icon"], prefix="fa")
-                    ).add_to(mapa)
+            # Mostrar resultados
+            st.subheader("Resultados encontrados")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"**Restaurantes:** {len(restaurantes)}")
+                st.markdown(f"**Oficinas:** {len(oficinas)}")
+                st.markdown(f"**Estaciones de Transmilenio:** {len(transmilenio)}")
+            
+            with col2:
+                folium_static(mapa_resultados)
 
-            # Agregar capa de calor
-            heat_data = [[p["geometry"]["location"]["lat"], p["geometry"]["location"]["lng"]] for p in places_data]
-            HeatMap(heat_data).add_to(mapa)
-
-        folium_static(mapa)
-
-        # Mostrar datos en tabla
-        if places_data:
-            st.subheader("Lista de Lugares Encontrados")
-            df_data = []
-            for place in places_data:
-                types = place.get("types", [])
-                categoria = next((iconos_categorias[c]["name"] for c in categories if c in types), "Otro")
-                
-                df_data.append({
-                    "Nombre": place["name"],
-                    "Tipo": categoria,
-                    "Dirección": place.get("vicinity", "No disponible"),
-                    "Rating": place.get("rating", "N/A")
+            # Mostrar tabla de resultados
+            st.subheader("Detalle de Lugares")
+            datos = []
+            for lugar, tipo in [(r, "Restaurante") for r in restaurantes] + \
+                            [(o, "Oficina") for o in oficinas] + \
+                            [(t, "Transmilenio") for t in transmilenio]:
+                datos.append({
+                    "Nombre": lugar["name"],
+                    "Tipo": tipo,
+                    "Dirección": lugar.get("vicinity", "No disponible"),
+                    "Rating": lugar.get("rating", "N/A"),
+                    "Abreviatura": ", ".join([x for x in lugar.get("types", []) if not x.startswith("point_of_interest")][:3])
                 })
             
-            df = pd.DataFrame(df_data)
-            st.dataframe(df)
+            df = pd.DataFrame(datos)
+            st.dataframe(df.sort_values(by="Tipo"), height=400)
 
-    except Exception as e:
-        st.error(f"Error: {e}")
+        except Exception as e:
+            st.error(f"Error en la búsqueda: {str(e)}")
