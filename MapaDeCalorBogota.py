@@ -27,7 +27,7 @@ zonas_bogota = [
     [4.75, -74.10], [4.75, -74.00], [4.70, -74.10], [4.70, -74.00],
     [4.65, -74.10], [4.65, -74.00], [4.60, -74.10], [4.60, -74.00]
 ]
-radio = 4000  # Búsqueda en 4km alrededor de cada punto
+radio = 2000  # Reducido a 2km
 
 # Categorías disponibles
 categorias_disponibles = {
@@ -43,6 +43,11 @@ categorias_seleccionadas = st.multiselect(
     list(categorias_disponibles.keys()),
     default=list(categorias_disponibles.keys())
 )
+
+# Checkbox para mostrar/ocultar categorías en el mapa
+filtros_visuales = {}
+for categoria in categorias_seleccionadas:
+    filtros_visuales[categoria] = st.checkbox(f"Mostrar {categorias_disponibles[categoria]['nombre']}", value=True)
 
 # Estaciones principales de TransMilenio con buses biarticulados
 transmilenio_principales = [
@@ -70,9 +75,15 @@ if st.button("Iniciar Búsqueda"):
                             location=location, radius=radius, type=place_type
                         )
 
-                    places.extend(places_result.get("results", []))
-                    next_page_token = places_result.get("next_page_token")
+                    for place in places_result.get("results", []):
+                        lat = place["geometry"]["location"]["lat"]
+                        lon = place["geometry"]["location"]["lng"]
 
+                        # Filtrar solo ubicaciones dentro de Bogotá
+                        if 4.50 <= lat <= 4.85 and -74.20 <= lon <= -73.98:
+                            places.append(place)
+
+                    next_page_token = places_result.get("next_page_token")
                     if not next_page_token:
                         break
                 except Exception as e:
@@ -105,7 +116,7 @@ if st.button("Iniciar Búsqueda"):
             place_types = place.get("types", [])
             categoria_valida = next((c for c in categorias_seleccionadas if c in place_types), None)
 
-            if categoria_valida:
+            if categoria_valida and filtros_visuales.get(categoria_valida, True):
                 info_categoria = categorias_disponibles[categoria_valida]
 
                 # Agregar marcador al mapa
