@@ -13,7 +13,7 @@ st.title("📍 Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
@@ -22,11 +22,25 @@ if not API_KEY:
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-# Dividir Bogotá en cuadrantes para obtener más datos
-zonas_bogota = [
-    [4.75, -74.10], [4.75, -74.00], [4.70, -74.10], [4.70, -74.00],
-    [4.65, -74.10], [4.65, -74.00], [4.60, -74.10], [4.60, -74.00]
-]
+# Selección de ubicación inicial
+ubicacion_usuario = st.text_input("Ingresa una ubicación para centrar la búsqueda (Ejemplo: Bogotá, Colombia)", "Bogotá, Colombia")
+
+# Obtener coordenadas de la ubicación ingresada
+if ubicacion_usuario:
+    try:
+        geocode_result = gmaps.geocode(ubicacion_usuario)
+        if geocode_result:
+            ubicacion_centrada = geocode_result[0]['geometry']['location']
+            zonas_bogota = [[ubicacion_centrada['lat'], ubicacion_centrada['lng']]]
+        else:
+            st.warning("No se pudo encontrar la ubicación. Se usará Bogotá como referencia.")
+            zonas_bogota = [[4.72, -74.05]]
+    except Exception as e:
+        st.warning(f"Error obteniendo la ubicación: {e}")
+        zonas_bogota = [[4.72, -74.05]]
+else:
+    zonas_bogota = [[4.72, -74.05]]
+
 radio = 2000  # Reducido a 2km
 
 # Categorías disponibles
@@ -53,7 +67,8 @@ for categoria in categorias_seleccionadas:
 transmilenio_principales = [
     "Portal Norte", "Calle 161", "Toberín", "Pepe Sierra", "Calle 100",
     "Av. Jiménez", "Calle 26", "Calle 57", "Flores", "Portal Américas",
-    "Portal Usme", "Portal Suba", "Portal 80", "Portal Sur"
+    "Portal Usme", "Portal Suba", "Portal 80", "Portal Sur",
+    "Héroes", "Calle 72", "Calle 85", "Marly", "Universidades"
 ]
 
 # Botón para iniciar la búsqueda
@@ -104,7 +119,7 @@ if st.button("Iniciar Búsqueda"):
         status.update(label="Lugares obtenidos con éxito", state="complete")
 
     # Crear mapa con Folium
-    mapa = folium.Map(location=[4.72, -74.05], zoom_start=12)
+    mapa = folium.Map(location=zonas_bogota[0], zoom_start=12)
 
     if places_data:
         heat_data = []
