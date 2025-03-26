@@ -6,7 +6,7 @@ import time
 from dotenv import load_dotenv
 from streamlit_folium import folium_static
 import folium
-from folium.plugins import HeatMap
+from folium.plugins import HeatMap, MousePosition
 import os
 
 st.title("📍 Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")
@@ -22,24 +22,23 @@ if not API_KEY:
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-# Selección de ubicación inicial
-ubicacion_usuario = st.text_input("Ingresa una ubicación para centrar la búsqueda (Ejemplo: Bogotá, Colombia)", "Bogotá, Colombia")
+# Selección de ubicación inicial en el mapa
+st.write("Haz clic en el mapa para seleccionar la ubicación de búsqueda")
 
-# Obtener coordenadas de la ubicación ingresada
-if ubicacion_usuario:
-    try:
-        geocode_result = gmaps.geocode(ubicacion_usuario)
-        if geocode_result:
-            ubicacion_centrada = geocode_result[0]['geometry']['location']
-            zonas_bogota = [[ubicacion_centrada['lat'], ubicacion_centrada['lng']]]
-        else:
-            st.warning("No se pudo encontrar la ubicación. Se usará Bogotá como referencia.")
-            zonas_bogota = [[4.72, -74.05]]
-    except Exception as e:
-        st.warning(f"Error obteniendo la ubicación: {e}")
-        zonas_bogota = [[4.72, -74.05]]
-else:
-    zonas_bogota = [[4.72, -74.05]]
+# Mapa inicial centrado en Bogotá
+mapa_base = folium.Map(location=[4.72, -74.05], zoom_start=12)
+mouse_position = MousePosition(position='topright', separator=' | ', empty_string='No data', num_digits=5, prefix='Lat: ', lat_formatter=None, lng_formatter=None)
+mapa_base.add_child(mouse_position)
+
+# Permitir al usuario seleccionar ubicación
+if "ubicacion_seleccionada" not in st.session_state:
+    st.session_state["ubicacion_seleccionada"] = [4.72, -74.05]
+
+# Capturar clic del usuario en el mapa
+mapa_base.add_child(folium.LatLngPopup())
+folium_static(mapa_base)
+
+st.write("Ubicación seleccionada: ", st.session_state["ubicacion_seleccionada"])
 
 radio = 2000  # Reducido a 2km
 
@@ -74,43 +73,42 @@ transmilenio_principales = [
 # Botón para iniciar la búsqueda
 if st.button("Iniciar Búsqueda"):
     @st.cache_data(show_spinner="Buscando lugares cercanos...")
-    def get_all_places(place_type, locations, radius):
+    def get_all_places(place_type, location, radius):
         places = []
-        for location in locations:
-            next_page_token = None
-            while True:
-                try:
-                    if next_page_token:
-                        time.sleep(2)
-                        places_result = gmaps.places_nearby(
-                            location=location, radius=radius, type=place_type, page_token=next_page_token
-                        )
-                    else:
-                        places_result = gmaps.places_nearby(
-                            location=location, radius=radius, type=place_type
-                        )
+        next_page_token = None
+        while True:
+            try:
+                if next_page_token:
+                    time.sleep(2)
+                    places_result = gmaps.places_nearby(
+                        location=location, radius=radius, type=place_type, page_token=next_page_token
+                    )
+                else:
+                    places_result = gmaps.places_nearby(
+                        location=location, radius=radius, type=place_type
+                    )
 
-                    for place in places_result.get("results", []):
-                        lat = place["geometry"]["location"]["lat"]
-                        lon = place["geometry"]["location"]["lng"]
+                for place in places_result.get("results", []):
+                    lat = place["geometry"]["location"]["lat"]
+                    lon = place["geometry"]["location"]["lng"]
 
-                        # Filtrar solo ubicaciones dentro de Bogotá
-                        if 4.50 <= lat <= 4.85 and -74.20 <= lon <= -73.98:
-                            places.append(place)
+                    # Filtrar solo ubicaciones dentro de Bogotá
+                    if 4.50 <= lat <= 4.85 and -74.20 <= lon <= -73.98:
+                        places.append(place)
 
-                    next_page_token = places_result.get("next_page_token")
-                    if not next_page_token:
-                        break
-                except Exception as e:
-                    st.warning(f"Error al obtener lugares para {place_type}: {e}")
+                next_page_token = places_result.get("next_page_token")
+                if not next_page_token:
                     break
+            except Exception as e:
+                st.warning(f"Error al obtener lugares para {place_type}: {e}")
+                break
         return places
 
     # Obtener lugares cercanos solo para las categorías seleccionadas
     places_data = []
     with st.status("Obteniendo lugares...", expanded=True) as status:
         for category in categorias_seleccionadas:
-            places = get_all_places(category, zonas_bogota, radio)
+            places = get_all_places(category, st.session_state["ubicacion_seleccionada"], radio)
             if category == "transit_station":
                 places = [p for p in places if any(name in p['name'] for name in transmilenio_principales)]
             places_data.extend(places)
@@ -119,7 +117,7 @@ if st.button("Iniciar Búsqueda"):
         status.update(label="Lugares obtenidos con éxito", state="complete")
 
     # Crear mapa con Folium
-    mapa = folium.Map(location=zonas_bogota[0], zoom_start=12)
+    mapa = folium.Map(location=st.session_state["ubicacion_seleccionada"], zoom_start=12)
 
     if places_data:
         heat_data = []
