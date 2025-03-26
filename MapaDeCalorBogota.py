@@ -7,11 +7,11 @@ import folium
 from folium.plugins import HeatMap
 import os
 
-st.title("📍 Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")  # Título de la app
+st.title("📍 Mapa de Calor: Oficinas, Restaurantes y TransMilenio en Bogotá")  # Título de la app
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"  # Usar variable de entorno
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")  # Usar variable de entorno
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
@@ -21,49 +21,22 @@ if not API_KEY:
 gmaps = googlemaps.Client(key=API_KEY)
 
 # Coordenadas de Bogotá
-ubicacion_ciudad = [4.60971, -74.08175]
+ubicacion_bogota = [4.60971, -74.08175]
 
 # Input para definir el radio de búsqueda
 radio = st.slider("Selecciona el radio de búsqueda (metros):", min_value=100, max_value=5000, value=500, step=100)
 
-# Inicializar session_state si no existe
-if "ubicacion_usuario" not in st.session_state:
-    st.session_state["ubicacion_usuario"] = None
-if "direccion_obtenida" not in st.session_state:
-    st.session_state["direccion_obtenida"] = ""
+# Opciones de categorías para mostrar
+categorias_disponibles = {
+    "restaurant": "🍽️ Restaurantes",
+    "real_estate_agency": "🏢 Oficinas",
+    "transit_station": "🚇 Estaciones de TransMilenio"
+}
 
-# Crear mapa base solo una vez
-mapa = folium.Map(location=ubicacion_ciudad, zoom_start=14)
-
-# Mostrar mapa interactivo con `st_folium`
-mapa_data = st_folium(mapa, width=700, height=500)
-
-# Si el usuario ha hecho clic en una nueva ubicación
-if mapa_data["last_clicked"]:
-    lat, lon = mapa_data["last_clicked"]["lat"], mapa_data["last_clicked"]["lng"]
-    
-    # Solo actualizar session_state si la ubicación cambia
-    if st.session_state["ubicacion_usuario"] != (lat, lon):
-        st.session_state["ubicacion_usuario"] = (lat, lon)
-
-        # Obtener dirección inversa con Google Maps
-        try:
-            reverse_geocode_result = gmaps.reverse_geocode((lat, lon))
-            if reverse_geocode_result:
-                st.session_state["direccion_obtenida"] = reverse_geocode_result[0]["formatted_address"]
-                st.success(f"Ubicación seleccionada: {st.session_state['direccion_obtenida']}")
-        except Exception as e:
-            st.warning(f"Error al obtener dirección: {e}")
+categorias_seleccionadas = st.multiselect("Selecciona las categorías a mostrar:", list(categorias_disponibles.keys()), default=list(categorias_disponibles.keys()))
 
 # Botón para iniciar la búsqueda
 if st.button("Iniciar Búsqueda"):
-
-    # Definir categorías específicas de búsqueda
-    categories = {
-        "restaurant": "🍽️ Restaurante",
-        "real_estate_agency": "🏢 Oficina",
-        "transit_station": "🚇 Estación TransMilenio"
-    }
 
     @st.cache_data(show_spinner="Buscando lugares cercanos...")
     def get_all_places(place_type, location, radius):
@@ -91,46 +64,21 @@ if st.button("Iniciar Búsqueda"):
                 break
         return places
 
-    # Obtener lugares cercanos
+    # Obtener lugares cercanos solo para las categorías seleccionadas
     places_data = []
     with st.status("Obteniendo lugares...", expanded=True) as status:
-        for category, name in categories.items():
-            places = get_all_places(category, st.session_state["ubicacion_usuario"] or ubicacion_ciudad, radio)
+        for category in categorias_seleccionadas:
+            places = get_all_places(category, ubicacion_bogota, radio)
             places_data.extend(places)
-            st.write(f"{len(places)} lugares encontrados en {name}")
+            st.write(f"{len(places)} lugares encontrados en {categorias_disponibles[category]}")
 
         status.update(label="Lugares obtenidos con éxito", state="complete")
 
-    # Diccionario de iconos por categoría
-    iconos_categorias = {
-        "restaurant": {"icon": "cutlery", "color": "red"},
-        "real_estate_agency": {"icon": "building", "color": "blue"},
-        "transit_station": {"icon": "train", "color": "green"},
-    }
-
-    # Crear mapa con Folium y agregar los lugares encontrados
-    mapa = folium.Map(location=st.session_state["ubicacion_usuario"] or ubicacion_ciudad, zoom_start=16)
-    folium.Marker(
-        location=st.session_state["ubicacion_usuario"] or ubicacion_ciudad,
-        popup="Ubicación seleccionada",
-        icon=folium.Icon(color="red", icon="star", prefix="glyphicon")
-    ).add_to(mapa)
+    # Crear mapa con Folium
+    mapa = folium.Map(location=ubicacion_bogota, zoom_start=14)
 
     if places_data:
-        for place in places_data:
-            place_types = place.get("types", [])
-            categoria_valida = next((c for c in categories if c in place_types), None)
-
-            if categoria_valida:
-                icono_info = iconos_categorias[categoria_valida]
-
-                folium.Marker(
-                    location=[place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]],
-                    popup=f"{place['name']} ({categories[categoria_valida]})\nRating: {place.get('rating', 'N/A')}",
-                    icon=folium.Icon(color=icono_info["color"], icon=icono_info["icon"], prefix="fa")
-                ).add_to(mapa)
-
-        # Agregar capa de calor
+        # Preparar datos para el mapa de calor
         heat_data = [[p["geometry"]["location"]["lat"], p["geometry"]["location"]["lng"]] for p in places_data]
         HeatMap(heat_data).add_to(mapa)
 
