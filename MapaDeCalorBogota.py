@@ -11,17 +11,20 @@ st.title("📍 Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")  # Tí
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" # Usar variable de entorno
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"  # Usar variable de entorno
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
     st.stop()
 
+# Inicializar cliente de Google Maps
+gmaps = googlemaps.Client(key=API_KEY)
+
 # Ubicación centrada más al norte de Bogotá
-ubicacion_bogota = [4.710989, -74.072092]
+ubicacion_bogota = [4.7200, -74.0500]  # Ajustado más al norte
 radio = 5000  # Búsqueda en 5km alrededor de la ubicación
 
-# Categorías disponibles (sin terminales de transporte)
+# Categorías disponibles
 categorias_disponibles = {
     "restaurant": {"nombre": "🍽️ Restaurantes", "color": "red", "icono": "cutlery"},
     "real_estate_agency": {"nombre": "🏢 Oficinas", "color": "blue", "icono": "building"},
