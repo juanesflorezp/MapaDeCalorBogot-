@@ -26,16 +26,26 @@ gmaps = googlemaps.Client(key=API_KEY)
 st.write("Haz clic en el mapa para seleccionar la ubicación de búsqueda")
 
 # Mapa inicial centrado en Bogotá
-mapa_base = folium.Map(location=[4.72, -74.05], zoom_start=12)
+if "ubicacion_seleccionada" not in st.session_state:
+    st.session_state["ubicacion_seleccionada"] = [4.72, -74.05]
+
+mapa_base = folium.Map(location=st.session_state["ubicacion_seleccionada"], zoom_start=12)
 mouse_position = MousePosition(position='topright', separator=' | ', empty_string='No data', num_digits=5, prefix='Lat: ', lat_formatter=None, lng_formatter=None)
 mapa_base.add_child(mouse_position)
 
 # Permitir al usuario seleccionar ubicación
-if "ubicacion_seleccionada" not in st.session_state:
-    st.session_state["ubicacion_seleccionada"] = [4.72, -74.05]
+def update_location(lat, lon):
+    st.session_state["ubicacion_seleccionada"] = [lat, lon]
 
-# Capturar clic del usuario en el mapa
-mapa_base.add_child(folium.LatLngPopup())
+mapa_base.add_child(folium.ClickForMarker(popup="Ubicación seleccionada", callback=update_location))
+
+# Mostrar marcador de la ubicación seleccionada
+folium.Marker(
+    location=st.session_state["ubicacion_seleccionada"],
+    popup="Ubicación seleccionada",
+    icon=folium.Icon(color="black", icon="info-sign")
+).add_to(mapa_base)
+
 folium_static(mapa_base)
 
 st.write("Ubicación seleccionada: ", st.session_state["ubicacion_seleccionada"])
@@ -62,12 +72,13 @@ filtros_visuales = {}
 for categoria in categorias_seleccionadas:
     filtros_visuales[categoria] = st.checkbox(f"Mostrar {categorias_disponibles[categoria]['nombre']}", value=True)
 
-# Estaciones principales de TransMilenio con buses biarticulados
+# Lista completa de estaciones de TransMilenio con buses biarticulados
 transmilenio_principales = [
     "Portal Norte", "Calle 161", "Toberín", "Pepe Sierra", "Calle 100",
     "Av. Jiménez", "Calle 26", "Calle 57", "Flores", "Portal Américas",
     "Portal Usme", "Portal Suba", "Portal 80", "Portal Sur",
-    "Héroes", "Calle 72", "Calle 85", "Marly", "Universidades"
+    "Héroes", "Calle 72", "Calle 85", "Marly", "Universidades",
+    "Portal Eldorado", "Portal Tunal", "Av. 68", "Av. Boyacá", "San Mateo"
 ]
 
 # Botón para iniciar la búsqueda
