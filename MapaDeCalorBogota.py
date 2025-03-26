@@ -12,7 +12,7 @@ st.title("📍 Mapa de Oficinas, Coworking, Restaurantes y TransMilenio en Bogot
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
@@ -91,7 +91,7 @@ if st.button("Iniciar Búsqueda"):
     
     # Obtener lugares cercanos
     try:
-        categories = ["restaurant", "coworking_space", "office", "transit_station"]
+        categories = ["restaurant", "coworking_space", "real_estate_agency", "transit_station"]
 
         @st.cache_data(show_spinner="Buscando lugares cercanos...")
         def get_all_places(place_type, location, radius):
