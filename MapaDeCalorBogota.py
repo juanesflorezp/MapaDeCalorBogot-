@@ -9,23 +9,23 @@ import folium
 from folium.plugins import HeatMap, MousePosition
 import os
 
-st.title("\ud83d\udccd Mapa de Oficinas, Restaurantes y TransMilenio en Bogot\u00e1")
+st.title("📍 Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")
 
 # Cargar variables de entorno
 load_dotenv()
 API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
 
 if not API_KEY:
-    st.error("API Key no encontrada. Aseg\u00farate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
+    st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
     st.stop()
 
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-# Selecci\u00f3n de ubicaci\u00f3n inicial en el mapa
-st.write("Haz clic en el mapa para seleccionar la ubicaci\u00f3n de b\u00fasqueda")
+# Selección de ubicación inicial en el mapa
+st.write("Haz clic en el mapa para seleccionar la ubicación de búsqueda")
 
-# Mapa inicial centrado en Bogot\u00e1
+# Mapa inicial centrado en Bogotá
 if "ubicacion_seleccionada" not in st.session_state:
     st.session_state["ubicacion_seleccionada"] = [4.72, -74.05]
 
@@ -37,32 +37,32 @@ mapa_base.add_child(mouse_position)
 # Mostrar mapa interactivo
 map_data = st_folium(mapa_base, height=500, width=700)
 
-# Actualizar ubicaci\u00f3n si el usuario hace clic en el mapa
+# Actualizar ubicación si el usuario hace clic en el mapa
 if map_data and "last_clicked" in map_data:
     st.session_state["ubicacion_seleccionada"] = [map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]]
 
-st.write("Ubicaci\u00f3n seleccionada: ", st.session_state["ubicacion_seleccionada"])
+st.write("Ubicación seleccionada: ", st.session_state["ubicacion_seleccionada"])
 
-# Radio de b\u00fasqueda
-tadio = 2000  # Reducido a 2km
+# Radio de búsqueda
+radio = 2000  # Reducido a 2km
 
-# Categor\u00edas disponibles
+# Categorías disponibles
 categorias_disponibles = {
-    "restaurant": {"nombre": "\ud83c\udf7d\ufe0f Restaurantes", "color": "red", "icono": "cutlery"},
-    "real_estate_agency": {"nombre": "\ud83c\udfe2 Oficinas", "color": "blue", "icono": "building"},
-    "office": {"nombre": "\ud83c\udfe2 Oficinas en general", "color": "darkblue", "icono": "briefcase"},
-    "coworking_space": {"nombre": "\ud83d\udcbc Espacios de Coworking", "color": "purple", "icono": "users"},
-    "transit_station": {"nombre": "\ud83d\ude87 Estaciones de TransMilenio", "color": "green", "icono": "train"},
+    "restaurant": {"nombre": "🍽️ Restaurantes", "color": "red", "icono": "cutlery"},
+    "real_estate_agency": {"nombre": "🏢 Oficinas", "color": "blue", "icono": "building"},
+    "office": {"nombre": "🏢 Oficinas en general", "color": "darkblue", "icono": "briefcase"},
+    "coworking_space": {"nombre": "💼 Espacios de Coworking", "color": "purple", "icono": "users"},
+    "transit_station": {"nombre": "🚉 Estaciones de TransMilenio", "color": "green", "icono": "train"},
 }
 
 categorias_seleccionadas = st.multiselect(
-    "Selecciona las categor\u00edas a mostrar:",
+    "Selecciona las categorías a mostrar:",
     list(categorias_disponibles.keys()),
     default=list(categorias_disponibles.keys())
 )
 
-# Bot\u00f3n para iniciar la b\u00fasqueda
-if st.button("Iniciar B\u00fasqueda"):
+# Botón para iniciar la búsqueda
+if st.button("Iniciar Búsqueda"):
     @st.cache_data(show_spinner="Buscando lugares cercanos...")
     def get_all_places(place_type, location, radius):
         places = []
