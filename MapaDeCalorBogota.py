@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+
 import streamlit as st
 import googlemaps
 import time
@@ -8,7 +9,7 @@ import folium
 from folium.plugins import HeatMap
 import os
 
-st.title("\ud83d\udccd Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")
+st.title("📍 Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")
 
 # Cargar variables de entorno
 load_dotenv()
@@ -30,11 +31,11 @@ radio = 4000  # Búsqueda en 4km alrededor de cada punto
 
 # Categorías disponibles
 categorias_disponibles = {
-    "restaurant": {"nombre": "\ud83c\udf7d\ufe0f Restaurantes", "color": "red", "icono": "cutlery"},
-    "real_estate_agency": {"nombre": "\ud83c\udfe2 Oficinas", "color": "blue", "icono": "building"},
-    "office": {"nombre": "\ud83c\udfe2 Oficinas en general", "color": "darkblue", "icono": "briefcase"},
-    "coworking_space": {"nombre": "\ud83d\udcbc Espacios de Coworking", "color": "purple", "icono": "users"},
-    "transit_station": {"nombre": "\ud83d\ude87 Estaciones de TransMilenio", "color": "green", "icono": "train"},
+    "restaurant": {"nombre": "🍽️ Restaurantes", "color": "red", "icono": "cutlery"},
+    "real_estate_agency": {"nombre": "🏢 Oficinas", "color": "blue", "icono": "building"},
+    "office": {"nombre": "🏢 Oficinas en general", "color": "darkblue", "icono": "briefcase"},
+    "coworking_space": {"nombre": "💼 Espacios de Coworking", "color": "purple", "icono": "users"},
+    "transit_station": {"nombre": "🚇 Estaciones de TransMilenio", "color": "green", "icono": "train"},
 }
 
 categorias_seleccionadas = st.multiselect(
