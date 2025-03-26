@@ -64,6 +64,12 @@ categorias_seleccionadas = st.multiselect(
     default=list(categorias_disponibles.keys())
 )
 
+# Mostrar información de depuración
+st.write("Buscando lugares con estos parámetros:")
+st.write(f"Ubicación: {st.session_state['ubicacion_seleccionada']}")
+st.write(f"Radio: {radio}")
+st.write(f"Categorías seleccionadas: {categorias_seleccionadas}")
+
 # Botón para iniciar la búsqueda
 if st.button("Iniciar Búsqueda"):
     @st.cache_data(show_spinner="Buscando lugares cercanos...")
@@ -72,7 +78,7 @@ if st.button("Iniciar Búsqueda"):
         next_page_token = None
         while True:
             try:
-                params = {"location": location, "radius": radius, "type": place_type}
+                params = {"location": f"{location[0]},{location[1]}", "radius": radius, "type": place_type}
                 if next_page_token:
                     params["page_token"] = next_page_token
                     time.sleep(2)
@@ -88,8 +94,8 @@ if st.button("Iniciar Búsqueda"):
                 if not next_page_token:
                     break
             except Exception as e:
-                st.warning(f"Error al obtener lugares para {place_type}: {e}")
-                break
+                st.error(f"Error al obtener lugares para {place_type}: {e}")
+                st.stop()
         return places
 
     places_data = []
