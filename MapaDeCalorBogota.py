@@ -2,12 +2,12 @@ import streamlit as st
 import googlemaps
 import time
 from dotenv import load_dotenv
-from streamlit_folium import folium_static, st_folium
+from streamlit_folium import folium_static
 import folium
 from folium.plugins import HeatMap
 import os
 
-st.title("📍 Mapa de Calor: Oficinas, Restaurantes y TransMilenio en Bogotá")  # Título de la app
+st.title("📍 Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")  # Título de la app
 
 # Cargar variables de entorno
 load_dotenv()
@@ -22,18 +22,20 @@ gmaps = googlemaps.Client(key=API_KEY)
 
 # Coordenadas de Bogotá
 ubicacion_bogota = [4.60971, -74.08175]
-
-# Input para definir el radio de búsqueda
-radio = st.slider("Selecciona el radio de búsqueda (metros):", min_value=100, max_value=5000, value=500, step=100)
+radio = 5000  # Búsqueda en 5km alrededor de Bogotá
 
 # Opciones de categorías para mostrar
 categorias_disponibles = {
-    "restaurant": "🍽️ Restaurantes",
-    "real_estate_agency": "🏢 Oficinas",
-    "transit_station": "🚇 Estaciones de TransMilenio"
+    "restaurant": {"nombre": "🍽️ Restaurantes", "color": "red", "icono": "cutlery"},
+    "real_estate_agency": {"nombre": "🏢 Oficinas", "color": "blue", "icono": "building"},
+    "transit_station": {"nombre": "🚇 Estaciones de TransMilenio", "color": "green", "icono": "train"}
 }
 
-categorias_seleccionadas = st.multiselect("Selecciona las categorías a mostrar:", list(categorias_disponibles.keys()), default=list(categorias_disponibles.keys()))
+categorias_seleccionadas = st.multiselect(
+    "Selecciona las categorías a mostrar:",
+    list(categorias_disponibles.keys()),
+    default=list(categorias_disponibles.keys())
+)
 
 # Botón para iniciar la búsqueda
 if st.button("Iniciar Búsqueda"):
@@ -70,16 +72,34 @@ if st.button("Iniciar Búsqueda"):
         for category in categorias_seleccionadas:
             places = get_all_places(category, ubicacion_bogota, radio)
             places_data.extend(places)
-            st.write(f"{len(places)} lugares encontrados en {categorias_disponibles[category]}")
+            st.write(f"{len(places)} lugares encontrados en {categorias_disponibles[category]['nombre']}")
 
         status.update(label="Lugares obtenidos con éxito", state="complete")
 
-    # Crear mapa con Folium
-    mapa = folium.Map(location=ubicacion_bogota, zoom_start=14)
+    # Crear mapa con Folium para toda Bogotá
+    mapa = folium.Map(location=ubicacion_bogota, zoom_start=12)
 
     if places_data:
-        # Preparar datos para el mapa de calor
-        heat_data = [[p["geometry"]["location"]["lat"], p["geometry"]["location"]["lng"]] for p in places_data]
+        heat_data = []
+        for place in places_data:
+            lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
+            heat_data.append([lat, lon])
+
+            # Obtener la categoría del lugar
+            place_types = place.get("types", [])
+            categoria_valida = next((c for c in categorias_seleccionadas if c in place_types), None)
+
+            if categoria_valida:
+                info_categoria = categorias_disponibles[categoria_valida]
+
+                # Agregar marcador al mapa
+                folium.Marker(
+                    location=[lat, lon],
+                    popup=f"{place['name']} ({info_categoria['nombre']})\nRating: {place.get('rating', 'N/A')}",
+                    icon=folium.Icon(color=info_categoria["color"], icon=info_categoria["icono"], prefix="fa")
+                ).add_to(mapa)
+
+        # Agregar capa de calor
         HeatMap(heat_data).add_to(mapa)
 
     folium_static(mapa)
