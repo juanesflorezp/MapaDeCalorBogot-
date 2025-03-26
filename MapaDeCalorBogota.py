@@ -38,8 +38,11 @@ mapa_base.add_child(mouse_position)
 map_data = st_folium(mapa_base, height=500, width=700)
 
 # Actualizar ubicación si el usuario hace clic en el mapa
-if map_data and "last_clicked" in map_data:
-    st.session_state["ubicacion_seleccionada"] = [map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]]
+if map_data and map_data.get("last_clicked"):
+    st.session_state["ubicacion_seleccionada"] = [
+        map_data["last_clicked"].get("lat", st.session_state["ubicacion_seleccionada"][0]),
+        map_data["last_clicked"].get("lng", st.session_state["ubicacion_seleccionada"][1])
+    ]
 
 st.write("Ubicación seleccionada: ", st.session_state["ubicacion_seleccionada"])
 
