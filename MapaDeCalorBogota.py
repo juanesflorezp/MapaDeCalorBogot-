@@ -13,7 +13,7 @@ st.title("📍 Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
@@ -38,7 +38,7 @@ mapa_base.add_child(mouse_position)
 map_data = st_folium(mapa_base, height=500, width=700)
 
 # Actualizar ubicación si el usuario hace clic en el mapa
-if map_data and "last_clicked" in map_data:
+if map_data and "last_clicked" in map_data and map_data["last_clicked"]:
     st.session_state["ubicacion_seleccionada"] = [map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]]
 
 st.write("Ubicación seleccionada: ", st.session_state["ubicacion_seleccionada"])
