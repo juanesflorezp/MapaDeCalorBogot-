@@ -12,7 +12,7 @@ st.title("📍 Mapa de Oficinas, Coworking, Restaurantes y TransMilenio en Bogot
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
@@ -27,11 +27,18 @@ ubicacion_ciudad = [4.60971, -74.08175]
 # Input para definir el radio de búsqueda
 radio = st.slider("Selecciona el radio de búsqueda (metros):", min_value=100, max_value=5000, value=500, step=100)
 
+# Permitir selección de ubicación en el mapa
+st.write("Haz clic en el mapa para seleccionar una ubicación personalizada")
+mapa_seleccion = folium.Map(location=ubicacion_ciudad, zoom_start=14)
+mapa_data = st_folium(mapa_seleccion, width=700, height=500)
+
+if mapa_data["last_clicked"]:
+    user_location = [mapa_data["last_clicked"]["lat"], mapa_data["last_clicked"]["lng"]]
+else:
+    user_location = ubicacion_ciudad
+
 # Botón para iniciar la búsqueda
 if st.button("Iniciar Búsqueda"):
-    user_location = ubicacion_ciudad
-    
-    # Obtener lugares cercanos
     try:
         categories = {
             "restaurant": {"icon": "cutlery", "color": "red"},
@@ -71,6 +78,13 @@ if st.button("Iniciar Búsqueda"):
         
         # Crear mapa con resultados
         mapa = folium.Map(location=user_location, zoom_start=14)
+        
+        # Agregar marcador de ubicación seleccionada
+        folium.Marker(
+            location=user_location,
+            popup="Ubicación seleccionada",
+            icon=folium.Icon(color="darkblue", icon="star", prefix="fa")
+        ).add_to(mapa)
         
         if places_data:
             for place, category in places_data:
