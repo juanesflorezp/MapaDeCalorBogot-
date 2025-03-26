@@ -131,6 +131,13 @@ if st.button("Iniciar Búsqueda"):
         ).add_to(mapa)
         
         if places_data:
+            for place in places_data:
+                folium.Marker(
+                    location=[place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]],
+                    popup=place["name"],
+                    icon=folium.Icon(color="blue", icon="info-sign")
+                ).add_to(mapa)
+            
             heat_data = [[p["geometry"]["location"]["lat"], p["geometry"]["location"]["lng"]] for p in places_data]
             HeatMap(heat_data).add_to(mapa)
         
