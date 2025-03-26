@@ -11,24 +11,23 @@ st.title("📍 Mapa de Oficinas, Restaurantes y TransMilenio en Bogotá")  # Tí
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"  # Usar variable de entorno
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" # Usar variable de entorno
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
     st.stop()
 
-# Inicializar cliente de Google Maps
-gmaps = googlemaps.Client(key=API_KEY)
+# Ubicación centrada más al norte de Bogotá
+ubicacion_bogota = [4.710989, -74.072092]
+radio = 5000  # Búsqueda en 5km alrededor de la ubicación
 
-# Coordenadas de Bogotá
-ubicacion_bogota = [4.60971, -74.08175]
-radio = 5000  # Búsqueda en 5km alrededor de Bogotá
-
-# Opciones de categorías para mostrar
+# Categorías disponibles (sin terminales de transporte)
 categorias_disponibles = {
     "restaurant": {"nombre": "🍽️ Restaurantes", "color": "red", "icono": "cutlery"},
     "real_estate_agency": {"nombre": "🏢 Oficinas", "color": "blue", "icono": "building"},
-    "transit_station": {"nombre": "🚇 Estaciones de TransMilenio", "color": "green", "icono": "train"}
+    "office": {"nombre": "🏢 Oficinas en general", "color": "darkblue", "icono": "briefcase"},
+    "coworking_space": {"nombre": "💼 Espacios de Coworking", "color": "purple", "icono": "users"},
+    "transit_station": {"nombre": "🚇 Estaciones de TransMilenio", "color": "green", "icono": "train"},
 }
 
 categorias_seleccionadas = st.multiselect(
@@ -76,8 +75,8 @@ if st.button("Iniciar Búsqueda"):
 
         status.update(label="Lugares obtenidos con éxito", state="complete")
 
-    # Crear mapa con Folium para toda Bogotá
-    mapa = folium.Map(location=ubicacion_bogota, zoom_start=12)
+    # Crear mapa con Folium
+    mapa = folium.Map(location=ubicacion_bogota, zoom_start=13)
 
     if places_data:
         heat_data = []
