@@ -4,4 +4,3 @@ pandas
 folium
 streamlit_folium
 python-dotenv
-streamlit-leaflet
