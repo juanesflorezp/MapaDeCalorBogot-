@@ -42,14 +42,14 @@ def get_all_places(place_type, location):
                 time.sleep(2)
                 results = gmaps.places_nearby(
                     location=location,
-                    radius=15000,  # Ampliar radio a 15 km
+                    radius=20000,  # Ampliar radio a 20 km
                     type=place_type,
                     page_token=next_page_token
                 )
             else:
                 results = gmaps.places_nearby(
                     location=location,
-                    radius=15000,
+                    radius=20000,
                     type=place_type
                 )
             
@@ -107,7 +107,7 @@ if st.button("Iniciar Búsqueda"):
                     lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
                     folium.Marker(
                         [lat, lon],
-                        popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}",
+                        popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}\nDirección: {place.get('vicinity', 'No disponible')}",
                         icon=folium.Icon(color=category_colors.get(category, "gray"), icon=category_icons.get(category, "info-sign"), prefix='fa')
                     ).add_to(marker_cluster)
         
