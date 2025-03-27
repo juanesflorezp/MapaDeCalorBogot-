@@ -56,7 +56,6 @@ if st.button("Iniciar Búsqueda"):
             [4.6570, -74.0934],    # Teusaquillo
             [4.5893, -74.0745],    # La Candelaria
             [4.7041, -74.0424],    # Suba
-            [4.6138, -74.2103]     # Bosa
         ]
         
         categories = ["restaurant", "cafe"]
