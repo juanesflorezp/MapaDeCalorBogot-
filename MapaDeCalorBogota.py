@@ -35,12 +35,25 @@ locations_dict = {
 user_location_name = st.selectbox("Ubicación", list(locations_dict.keys()))
 user_location = locations_dict[user_location_name]
 
-# Radio reducido a 5km
-SEARCH_RADIUS = 5000
-MAX_RESULTS_PER_CATEGORY = 100
+# Radio y cantidad de resultados configurables
+radio = st.slider("Selecciona el radio de búsqueda (metros):", min_value=100, max_value=5000, value=1000, step=100)
+max_results = st.slider("Cantidad mínima de resultados por categoría:", min_value=20, max_value=200, value=100, step=10)
+
+opcion_busqueda = st.radio("¿Cómo quieres buscar?", ("Usar ubicación seleccionada", "Seleccionar ubicación en el mapa"))
+
+if "ubicacion_usuario" not in st.session_state:
+    st.session_state["ubicacion_usuario"] = None
+
+mapa = folium.Map(location=user_location, zoom_start=14)
+mapa_data = st_folium(mapa, width=700, height=500)
+
+if mapa_data["last_clicked"]:
+    lat, lon = mapa_data["last_clicked"]["lat"], mapa_data["last_clicked"]["lng"]
+    st.session_state["ubicacion_usuario"] = (lat, lon)
+    st.success(f"Ubicación personalizada seleccionada: {lat}, {lon}")
 
 
-def get_all_places(place_type, location, radius=SEARCH_RADIUS, max_results=MAX_RESULTS_PER_CATEGORY):
+def get_all_places(place_type, location, radius=1000, max_results=100):
     places = {}
     next_page_token = None
     attempts = 0
@@ -72,21 +85,29 @@ def get_all_places(place_type, location, radius=SEARCH_RADIUS, max_results=MAX_R
 
 if st.button("Iniciar Búsqueda"):
     with st.spinner(f"Buscando lugares en {user_location_name}..."):
+        if opcion_busqueda == "Seleccionar ubicación en el mapa" and st.session_state["ubicacion_usuario"]:
+            search_location = st.session_state["ubicacion_usuario"]
+        else:
+            search_location = user_location
+
         categories = ["bar", "cafe", "restaurant", "office", "transit_station"]
         places_data = {category: [] for category in categories}
 
         for category in categories:
-            places_data[category] = get_all_places(category, user_location)
+            places_data[category] = get_all_places(category, search_location, radius=radio, max_results=max_results)
+            st.write(f"{len(places_data[category])} lugares encontrados en {category}")
 
         # Guardar resultados en un archivo JSON
-        with open("places_data.json", "w") as f:
+        file_name = f"places_data_{user_location_name}.json"
+        with open(file_name, "w") as f:
             json.dump(places_data, f)
-        st.success("Datos guardados correctamente en places_data.json")
+        st.success(f"Datos guardados correctamente en {file_name}")
 
 # Botón para generar el mapa desde el archivo guardado
 if st.button("Generar Mapa"):
+    file_name = f"places_data_{user_location_name}.json"
     try:
-        with open("places_data.json", "r") as f:
+        with open(file_name, "r") as f:
             places_data = json.load(f)
 
         # Crear mapa
@@ -114,4 +135,4 @@ if st.button("Generar Mapa"):
 
         folium_static(mapa)
     except FileNotFoundError:
-        st.error("No se encontró el archivo places_data.json. Primero realiza la búsqueda.")
+        st.error(f"No se encontró el archivo {file_name}. Primero realiza la búsqueda.")
