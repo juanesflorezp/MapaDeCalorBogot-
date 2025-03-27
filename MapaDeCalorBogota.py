@@ -20,36 +20,27 @@ if not API_KEY:
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-# Ubicación fija en Bogotá
-ubicacion_bogota = [4.60971, -74.08175]
-radio = st.slider("Selecciona el radio de búsqueda (metros):", min_value=100, max_value=5000, value=500, step=100)
+# Área metropolitana de Bogotá
+area_bogota = "Bogotá, Colombia"
 
-mapa = folium.Map(location=ubicacion_bogota, zoom_start=14)
+mapa = folium.Map(location=[4.60971, -74.08175], zoom_start=12)
 mapa_data = st_folium(mapa, width=700, height=500)
 
 if "ubicacion_usuario" not in st.session_state:
-    st.session_state["ubicacion_usuario"] = ubicacion_bogota
+    st.session_state["ubicacion_usuario"] = [4.60971, -74.08175]
 if "direccion_obtenida" not in st.session_state:
     st.session_state["direccion_obtenida"] = ""
 
-if mapa_data["last_clicked"]:
-    lat, lon = mapa_data["last_clicked"]["lat"], mapa_data["last_clicked"]["lng"]
-    st.session_state["ubicacion_usuario"] = (lat, lon)
-    reverse_geocode_result = gmaps.reverse_geocode((lat, lon))
-    if reverse_geocode_result:
-        st.session_state["direccion_obtenida"] = reverse_geocode_result[0]["formatted_address"]
-        st.success(f"Ubicación seleccionada: {st.session_state['direccion_obtenida']}")
-
-def get_all_places(place_type, location, radius):
+def get_all_places(place_type, area):
     places = {}
     next_page_token = None
     while True:
         try:
             if next_page_token:
                 time.sleep(2)
-                results = gmaps.places_nearby(location=location, radius=radius, type=place_type, page_token=next_page_token)
+                results = gmaps.places(query=place_type, location=area, page_token=next_page_token)
             else:
-                results = gmaps.places_nearby(location=location, radius=radius, type=place_type)
+                results = gmaps.places(query=place_type, location=area)
             
             for place in results.get("results", []):
                 if place.get("rating", 0) >= 3.5:
@@ -76,19 +67,18 @@ category_colors = {
 }
 
 if st.button("Iniciar Búsqueda"):
-    with st.spinner("Buscando lugares..."):
-        lat, lon = st.session_state["ubicacion_usuario"]
-        user_location = (lat, lon)
+    with st.spinner("Buscando lugares en Bogotá..."):
+        user_location = st.session_state["ubicacion_usuario"]
         places_data = {}
         categories = ["restaurant", "transit_station", "real_estate_agency"]
         progress_bar = st.progress(0)
         
         heatmap_data = []
-        mapa = folium.Map(location=user_location, zoom_start=16)
+        mapa = folium.Map(location=user_location, zoom_start=12)
         marker_cluster = MarkerCluster().add_to(mapa)
         
         for i, category in enumerate(categories):
-            places_data[category] = get_all_places(category, user_location, radius=radio)
+            places_data[category] = get_all_places(category, area_bogota)
             progress_bar.progress((i + 1) / len(categories))
             st.write(f"{len(places_data[category])} lugares encontrados en {category}")
             
