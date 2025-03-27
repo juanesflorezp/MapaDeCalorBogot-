@@ -42,14 +42,14 @@ def get_all_places(place_type, location):
                 time.sleep(2)
                 results = gmaps.places_nearby(
                     location=location,
-                    radius=10000,  # 10 km alrededor de la ubicación seleccionada
+                    radius=15000,  # Ampliar radio a 15 km
                     type=place_type,
                     page_token=next_page_token
                 )
             else:
                 results = gmaps.places_nearby(
                     location=location,
-                    radius=10000,
+                    radius=15000,
                     type=place_type
                 )
             
@@ -93,7 +93,9 @@ if st.button("Iniciar Búsqueda"):
             st.write(f"{len(places_data[category])} lugares encontrados en {category}")
             
             for place in places_data[category]:
-                heatmap_data.append([place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]])
+                if "geometry" in place and "location" in place["geometry"]:
+                    lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
+                    heatmap_data.append([lat, lon])
         
         progress_bar.empty()
         
@@ -101,12 +103,13 @@ if st.button("Iniciar Búsqueda"):
         
         for category, places in places_data.items():
             for place in places:
-                lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
-                folium.Marker(
-                    [lat, lon],
-                    popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}",
-                    icon=folium.Icon(color=category_colors.get(category, "gray"), icon=category_icons.get(category, "info-sign"), prefix='fa')
-                ).add_to(marker_cluster)
+                if "geometry" in place and "location" in place["geometry"]:
+                    lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
+                    folium.Marker(
+                        [lat, lon],
+                        popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}",
+                        icon=folium.Icon(color=category_colors.get(category, "gray"), icon=category_icons.get(category, "info-sign"), prefix='fa')
+                    ).add_to(marker_cluster)
         
         HeatMap(heatmap_data).add_to(mapa)
         folium_static(mapa)
