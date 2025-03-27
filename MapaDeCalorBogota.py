@@ -1,6 +1,7 @@
 import streamlit as st
 import googlemaps
 import time
+import json
 from dotenv import load_dotenv
 from streamlit_folium import folium_static, st_folium
 import folium
@@ -19,6 +20,16 @@ if not API_KEY:
 
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
+
+# Definir múltiples ubicaciones para ampliar la cobertura
+locations = [
+    [4.60971, -74.08175],  # Centro
+    [4.6351, -74.0703],    # Chapinero
+    [4.6570, -74.0934],    # Teusaquillo
+    [4.5893, -74.0745],    # La Candelaria
+    [4.7041, -74.0424],    # Suba
+    [4.6138, -74.2103]     # Bosa
+]
 
 def get_all_places(place_type, locations, radius=10000):
     places = {}
@@ -49,18 +60,20 @@ def get_all_places(place_type, locations, radius=10000):
 
 if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando lugares en Bogotá..."):
-        # Definir múltiples ubicaciones para ampliar la cobertura
-        locations = [
-            [4.60971, -74.08175],  # Centro
-            [4.6351, -74.0703],    # Chapinero
-            [4.6570, -74.0934],    # Teusaquillo
-            [4.5893, -74.0745],    # La Candelaria
-            [4.7041, -74.0424],    # Suba
-        ]
-        
         categories = ["restaurant", "cafe"]
         places_data = {category: get_all_places(category, locations) for category in categories}
+        
+        # Guardar resultados en un archivo JSON
+        with open("places_data.json", "w") as f:
+            json.dump(places_data, f)
+        st.success("Datos guardados correctamente en places_data.json")
 
+# Botón para generar el mapa desde el archivo guardado
+if st.button("Generar Mapa"):
+    try:
+        with open("places_data.json", "r") as f:
+            places_data = json.load(f)
+        
         # Crear mapa
         mapa = folium.Map(location=[4.60971, -74.08175], zoom_start=12)
         marker_cluster = MarkerCluster().add_to(mapa)
@@ -79,3 +92,5 @@ if st.button("Iniciar Búsqueda"):
                     ).add_to(marker_cluster)
         
         folium_static(mapa)
+    except FileNotFoundError:
+        st.error("No se encontró el archivo places_data.json. Primero realiza la búsqueda.")
