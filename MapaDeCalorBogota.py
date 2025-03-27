@@ -38,20 +38,16 @@ def get_all_places(place_type, location):
     next_page_token = None
     while True:
         try:
-            if next_page_token:
-                time.sleep(2)
-                results = gmaps.places_nearby(
-                    location=location,
-                    radius=20000,  # Ampliar radio a 20 km
-                    type=place_type,
-                    page_token=next_page_token
-                )
-            else:
-                results = gmaps.places_nearby(
-                    location=location,
-                    radius=20000,
-                    type=place_type
-                )
+            results = gmaps.places_nearby(
+                location=location,
+                radius=20000,  # Ampliar radio a 20 km
+                type=place_type,
+                page_token=next_page_token
+            ) if next_page_token else gmaps.places_nearby(
+                location=location,
+                radius=20000,
+                type=place_type
+            )
             
             for place in results.get("results", []):
                 places[place["place_id"]] = place
@@ -59,6 +55,7 @@ def get_all_places(place_type, location):
             next_page_token = results.get("next_page_token")
             if not next_page_token:
                 break
+            time.sleep(2)  # Esperar para obtener más resultados
         except Exception as e:
             st.warning(f"Error al obtener lugares para {place_type}: {e}")
             break
@@ -67,13 +64,21 @@ def get_all_places(place_type, location):
 if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando restaurantes en Bogotá..."):
         user_location = st.session_state["ubicacion_usuario"]
-        places_data = get_all_places("restaurant", user_location)
+        places_data = []
+        
+        # Hacer múltiples llamadas para asegurar la máxima cantidad de resultados
+        for _ in range(3):  # Intentar obtener más resultados con múltiples llamados
+            new_places = get_all_places("restaurant", user_location)
+            places_data.extend(new_places)
+            time.sleep(2)  # Pausa para evitar limitaciones de API
+        
+        unique_places = {p["place_id"]: p for p in places_data}.values()
         
         heatmap_data = []
         mapa = folium.Map(location=user_location, zoom_start=12)
         marker_cluster = MarkerCluster().add_to(mapa)
         
-        for place in places_data:
+        for place in unique_places:
             if "geometry" in place and "location" in place["geometry"]:
                 lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
                 heatmap_data.append([lat, lon])
