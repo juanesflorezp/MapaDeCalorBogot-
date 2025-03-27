@@ -28,14 +28,15 @@ locations = [
     [4.6570, -74.0934],    # Teusaquillo
     [4.5893, -74.0745],    # La Candelaria
     [4.7041, -74.0424],    # Suba
-    [4.6138, -74.2103]     # Bosa
+    [4.6768, -74.0484],    # Usaquén
 ]
 
-def get_all_places(place_type, locations, radius=10000):
+def get_all_places(place_type, locations, radius=5000):
     places = {}
     for location in locations:
         next_page_token = None
-        while True:
+        attempts = 0
+        while attempts < 3:  # Intentar hasta 3 páginas de resultados por ubicación
             try:
                 # Hacer la solicitud con o sin token de paginación
                 params = {"location": location, "radius": radius, "type": place_type}
@@ -52,6 +53,8 @@ def get_all_places(place_type, locations, radius=10000):
                 next_page_token = results.get("next_page_token")
                 if not next_page_token:
                     break  # No hay más resultados
+                
+                attempts += 1
             except Exception as e:
                 st.warning(f"Error al obtener lugares para {place_type}: {e}")
                 break
@@ -61,7 +64,10 @@ def get_all_places(place_type, locations, radius=10000):
 if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando lugares en Bogotá..."):
         categories = ["restaurant", "cafe"]
-        places_data = {category: get_all_places(category, locations) for category in categories}
+        places_data = {category: [] for category in categories}
+        
+        for category in categories:
+            places_data[category] = get_all_places(category, locations)
         
         # Guardar resultados en un archivo JSON
         with open("places_data.json", "w") as f:
