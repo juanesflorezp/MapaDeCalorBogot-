@@ -37,43 +37,47 @@ user_location = locations_dict[user_location_name]
 
 # Radio reducido a 5km
 SEARCH_RADIUS = 5000
+MAX_RESULTS_PER_CATEGORY = 40
 
-def get_all_places(place_types, location, radius=SEARCH_RADIUS):
+
+def get_all_places(place_type, location, radius=SEARCH_RADIUS, max_results=MAX_RESULTS_PER_CATEGORY):
     places = {}
-    for place_type in place_types:
-        next_page_token = None
-        attempts = 0
-        while attempts < 5:  # Intentar hasta 5 páginas de resultados
-            try:
-                params = {"location": location, "radius": radius, "type": place_type}
-                if next_page_token:
-                    params["page_token"] = next_page_token
-                    time.sleep(2)  # Google recomienda esperar antes de usar el token
+    next_page_token = None
+    attempts = 0
+    while attempts < 10 and len(places) < max_results:
+        try:
+            params = {"location": location, "radius": radius, "type": place_type}
+            if next_page_token:
+                params["page_token"] = next_page_token
+                time.sleep(2)
 
-                results = gmaps.places_nearby(**params)
+            results = gmaps.places_nearby(**params)
 
-                for place in results.get("results", []):
-                    places[place["place_id"]] = place
+            for place in results.get("results", []):
+                places[place["place_id"]] = place
+                if len(places) >= max_results:
+                    break
 
-                next_page_token = results.get("next_page_token")
-                if not next_page_token:
-                    break  # No hay más resultados
-                
-                attempts += 1
-            except Exception as e:
-                st.warning(f"Error al obtener lugares para {place_type}: {e}")
+            next_page_token = results.get("next_page_token")
+            if not next_page_token or len(places) >= max_results:
                 break
-    
+
+            attempts += 1
+        except Exception as e:
+            st.warning(f"Error al obtener lugares para {place_type}: {e}")
+            break
+
     return list(places.values())
+
 
 if st.button("Iniciar Búsqueda"):
     with st.spinner(f"Buscando lugares en {user_location_name}..."):
         categories = ["bar", "cafe", "restaurant", "office", "transit_station"]
         places_data = {category: [] for category in categories}
-        
+
         for category in categories:
-            places_data[category] = get_all_places([category], user_location)
-        
+            places_data[category] = get_all_places(category, user_location)
+
         # Guardar resultados en un archivo JSON
         with open("places_data.json", "w") as f:
             json.dump(places_data, f)
@@ -84,7 +88,7 @@ if st.button("Generar Mapa"):
     try:
         with open("places_data.json", "r") as f:
             places_data = json.load(f)
-        
+
         # Crear mapa
         mapa = folium.Map(location=user_location, zoom_start=14)
         marker_cluster = MarkerCluster().add_to(mapa)
@@ -96,7 +100,7 @@ if st.button("Generar Mapa"):
             "restaurant": "utensils", "cafe": "coffee", "bar": "beer", "office": "building",
             "transit_station": "bus"
         }
-        
+
         # Agregar marcadores
         for category, places in places_data.items():
             for place in places:
@@ -107,7 +111,7 @@ if st.button("Generar Mapa"):
                         popup=f"{place['name']} - {category.replace('_', ' ').capitalize()}\nDirección: {place.get('vicinity', 'No disponible')}",
                         icon=folium.Icon(color=colors.get(category, "gray"), icon=icons.get(category, "map-marker"), prefix='fa')
                     ).add_to(marker_cluster)
-        
+
         folium_static(mapa)
     except FileNotFoundError:
         st.error("No se encontró el archivo places_data.json. Primero realiza la búsqueda.")
