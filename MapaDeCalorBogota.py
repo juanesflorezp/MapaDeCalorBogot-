@@ -20,58 +20,46 @@ if not API_KEY:
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-mapa = folium.Map(location=[4.60971, -74.08175], zoom_start=12)
-mapa_data = st_folium(mapa, width=700, height=500)
-
-def get_all_places(place_type, location):
+def get_all_places(place_type, location, radius=30000):
     places = {}
     next_page_token = None
-    attempts = 0
+
     while True:
         try:
+            # Hacer la solicitud con o sin token de paginación
+            params = {"location": location, "radius": radius, "type": place_type}
             if next_page_token:
-                time.sleep(2)
-                results = gmaps.places_nearby(
-                    location=location,
-                    radius=20000,
-                    type=place_type,
-                    page_token=next_page_token
-                )
-            else:
-                results = gmaps.places_nearby(
-                    location=location,
-                    radius=20000,
-                    type=place_type
-                )
-            
+                params["page_token"] = next_page_token
+                time.sleep(2)  # Google recomienda esperar antes de usar el token
+
+            results = gmaps.places_nearby(**params)
+
             for place in results.get("results", []):
                 places[place["place_id"]] = place
-            
+
+            # Verificar si hay más páginas
             next_page_token = results.get("next_page_token")
-            attempts += 1
-            if not next_page_token or attempts >= 5:
-                break
+            if not next_page_token:
+                break  # No hay más resultados
         except Exception as e:
             st.warning(f"Error al obtener lugares para {place_type}: {e}")
             break
+    
     return list(places.values())
 
 if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando lugares en Bogotá..."):
         user_location = [4.60971, -74.08175]
-        places_data = {"restaurant": [], "cafe": []}
-        
-        for category in places_data.keys():
-            for _ in range(5):
-                new_places = get_all_places(category, user_location)
-                places_data[category].extend(new_places)
-                time.sleep(2)
-        
+        categories = ["restaurant", "cafe"]
+        places_data = {category: get_all_places(category, user_location) for category in categories}
+
+        # Crear mapa
         mapa = folium.Map(location=user_location, zoom_start=12)
         marker_cluster = MarkerCluster().add_to(mapa)
         colors = {"restaurant": "red", "cafe": "brown"}
         icons = {"restaurant": "utensils", "cafe": "coffee"}
         
+        # Agregar marcadores
         for category, places in places_data.items():
             for place in places:
                 if "geometry" in place and "location" in place["geometry"]:
