@@ -32,13 +32,13 @@ locations = [
     [4.6823, -74.0532]     # Zona T
 ]
 
-def get_all_places(place_types, locations, radius=4000):
+def get_all_places(place_types, locations, radius=5000):
     places = {}
     for location in locations:
         for place_type in place_types:
             next_page_token = None
             attempts = 0
-            while attempts < 3:  # Intentar hasta 3 páginas de resultados por ubicación
+            while attempts < 5:  # Intentar hasta 5 páginas de resultados por ubicación
                 try:
                     params = {"location": location, "radius": radius, "type": place_type}
                     if next_page_token:
@@ -64,8 +64,7 @@ def get_all_places(place_types, locations, radius=4000):
 if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando lugares en Bogotá..."):
         categories = [
-            "bar", "cafe", "restaurant", "office", "transit_station",
-            "night_club", "bakery", "co_working_space", "shopping_mall"
+            "bar", "cafe", "restaurant", "office", "transit_station"
         ]
         places_data = {category: [] for category in categories}
         
@@ -88,13 +87,11 @@ if st.button("Generar Mapa"):
         marker_cluster = MarkerCluster().add_to(mapa)
         colors = {
             "restaurant": "red", "cafe": "brown", "bar": "blue", "office": "green",
-            "transit_station": "purple", "night_club": "darkblue", "bakery": "orange",
-            "co_working_space": "lightgreen", "shopping_mall": "pink"
+            "transit_station": "purple"
         }
         icons = {
             "restaurant": "utensils", "cafe": "coffee", "bar": "beer", "office": "building",
-            "transit_station": "bus", "night_club": "music", "bakery": "bread-slice",
-            "co_working_space": "briefcase", "shopping_mall": "shopping-cart"
+            "transit_station": "bus"
         }
         
         # Agregar marcadores
