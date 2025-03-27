@@ -11,7 +11,7 @@ st.title("📍 Mapa de Bogotá: Restaurantes y Cafés")
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" 
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
@@ -20,41 +20,50 @@ if not API_KEY:
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-def get_all_places(place_type, location, radius=30000):
+def get_all_places(place_type, locations, radius=10000):
     places = {}
-    next_page_token = None
+    for location in locations:
+        next_page_token = None
+        while True:
+            try:
+                # Hacer la solicitud con o sin token de paginación
+                params = {"location": location, "radius": radius, "type": place_type}
+                if next_page_token:
+                    params["page_token"] = next_page_token
+                    time.sleep(2)  # Google recomienda esperar antes de usar el token
 
-    while True:
-        try:
-            # Hacer la solicitud con o sin token de paginación
-            params = {"location": location, "radius": radius, "type": place_type}
-            if next_page_token:
-                params["page_token"] = next_page_token
-                time.sleep(2)  # Google recomienda esperar antes de usar el token
+                results = gmaps.places_nearby(**params)
 
-            results = gmaps.places_nearby(**params)
+                for place in results.get("results", []):
+                    places[place["place_id"]] = place
 
-            for place in results.get("results", []):
-                places[place["place_id"]] = place
-
-            # Verificar si hay más páginas
-            next_page_token = results.get("next_page_token")
-            if not next_page_token:
-                break  # No hay más resultados
-        except Exception as e:
-            st.warning(f"Error al obtener lugares para {place_type}: {e}")
-            break
+                # Verificar si hay más páginas
+                next_page_token = results.get("next_page_token")
+                if not next_page_token:
+                    break  # No hay más resultados
+            except Exception as e:
+                st.warning(f"Error al obtener lugares para {place_type}: {e}")
+                break
     
     return list(places.values())
 
 if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando lugares en Bogotá..."):
-        user_location = [4.60971, -74.08175]
+        # Definir múltiples ubicaciones para ampliar la cobertura
+        locations = [
+            [4.60971, -74.08175],  # Centro
+            [4.6351, -74.0703],    # Chapinero
+            [4.6570, -74.0934],    # Teusaquillo
+            [4.5893, -74.0745],    # La Candelaria
+            [4.7041, -74.0424],    # Suba
+            [4.6138, -74.2103]     # Bosa
+        ]
+        
         categories = ["restaurant", "cafe"]
-        places_data = {category: get_all_places(category, user_location) for category in categories}
+        places_data = {category: get_all_places(category, locations) for category in categories}
 
         # Crear mapa
-        mapa = folium.Map(location=user_location, zoom_start=12)
+        mapa = folium.Map(location=[4.60971, -74.08175], zoom_start=12)
         marker_cluster = MarkerCluster().add_to(mapa)
         colors = {"restaurant": "red", "cafe": "brown"}
         icons = {"restaurant": "utensils", "cafe": "coffee"}
