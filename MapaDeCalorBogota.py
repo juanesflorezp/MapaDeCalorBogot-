@@ -7,11 +7,11 @@ import folium
 from folium.plugins import MarkerCluster
 import os
 
-st.title("📍 Mapa de Bogotá: Restaurantes, Oficinas y TransMilenio")
+st.title("📍 Mapa de Bogotá: Restaurantes y Cafés")
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" 
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
@@ -59,7 +59,7 @@ def get_all_places(place_type, location):
 if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando lugares en Bogotá..."):
         user_location = [4.60971, -74.08175]
-        places_data = {"restaurant": [], "office": [], "transit_station": []}
+        places_data = {"restaurant": [], "cafe": []}
         
         for category in places_data.keys():
             for _ in range(5):
@@ -69,8 +69,8 @@ if st.button("Iniciar Búsqueda"):
         
         mapa = folium.Map(location=user_location, zoom_start=12)
         marker_cluster = MarkerCluster().add_to(mapa)
-        colors = {"restaurant": "red", "office": "blue", "transit_station": "green"}
-        icons = {"restaurant": "utensils", "office": "briefcase", "transit_station": "bus"}
+        colors = {"restaurant": "red", "cafe": "brown"}
+        icons = {"restaurant": "utensils", "cafe": "coffee"}
         
         for category, places in places_data.items():
             for place in places:
