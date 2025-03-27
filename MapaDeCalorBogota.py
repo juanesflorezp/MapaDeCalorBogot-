@@ -8,7 +8,7 @@ import folium
 from folium.plugins import MarkerCluster
 import os
 
-st.title("📍 Mapa de Bogotá: Restaurantes y Cafés")
+st.title("📍 Mapa de Bogotá: Lugares de Interés")
 
 # Cargar variables de entorno
 load_dotenv()
@@ -21,14 +21,13 @@ if not API_KEY:
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-# Definir múltiples ubicaciones para ampliar la cobertura
+# Definir ubicaciones en el centro y norte de Bogotá
 locations = [
     [4.60971, -74.08175],  # Centro
     [4.6351, -74.0703],    # Chapinero
     [4.6570, -74.0934],    # Teusaquillo
-    [4.5893, -74.0745],    # La Candelaria
-    [4.7041, -74.0424],    # Suba
     [4.6768, -74.0484],    # Usaquén
+    [4.7041, -74.0424]     # Suba
 ]
 
 def get_all_places(place_type, locations, radius=5000):
@@ -63,7 +62,7 @@ def get_all_places(place_type, locations, radius=5000):
 
 if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando lugares en Bogotá..."):
-        categories = ["restaurant", "cafe"]
+        categories = ["bar", "cafe", "restaurant", "office", "transit_station"]
         places_data = {category: [] for category in categories}
         
         for category in categories:
@@ -81,10 +80,10 @@ if st.button("Generar Mapa"):
             places_data = json.load(f)
         
         # Crear mapa
-        mapa = folium.Map(location=[4.60971, -74.08175], zoom_start=12)
+        mapa = folium.Map(location=[4.6351, -74.0703], zoom_start=12)
         marker_cluster = MarkerCluster().add_to(mapa)
-        colors = {"restaurant": "red", "cafe": "brown"}
-        icons = {"restaurant": "utensils", "cafe": "coffee"}
+        colors = {"restaurant": "red", "cafe": "brown", "bar": "blue", "office": "green", "transit_station": "purple"}
+        icons = {"restaurant": "utensils", "cafe": "coffee", "bar": "beer", "office": "building", "transit_station": "bus"}
         
         # Agregar marcadores
         for category, places in places_data.items():
@@ -93,7 +92,7 @@ if st.button("Generar Mapa"):
                     lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
                     folium.Marker(
                         [lat, lon],
-                        popup=f"{place['name']} - {category.capitalize()}\nDirección: {place.get('vicinity', 'No disponible')}",
+                        popup=f"{place['name']} - {category.replace('_', ' ').capitalize()}\nDirección: {place.get('vicinity', 'No disponible')}",
                         icon=folium.Icon(color=colors[category], icon=icons[category], prefix='fa')
                     ).add_to(marker_cluster)
         
