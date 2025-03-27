@@ -20,12 +20,6 @@ if not API_KEY:
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-# Coordenadas aproximadas del área metropolitana de Bogotá
-bogota_bounds = {
-    "northeast": {"lat": 4.8375, "lng": -74.0006},
-    "southwest": {"lat": 4.4713, "lng": -74.2141}
-}
-
 mapa = folium.Map(location=[4.60971, -74.08175], zoom_start=12)
 mapa_data = st_folium(mapa, width=700, height=500)
 
@@ -48,14 +42,14 @@ def get_all_places(place_type, location):
                 time.sleep(2)
                 results = gmaps.places_nearby(
                     location=location,
-                    radius=25000,  # 25 km para cubrir el área metropolitana
+                    radius=10000,  # 10 km alrededor de la ubicación seleccionada
                     type=place_type,
                     page_token=next_page_token
                 )
             else:
                 results = gmaps.places_nearby(
                     location=location,
-                    radius=25000,
+                    radius=10000,
                     type=place_type
                 )
             
@@ -72,13 +66,13 @@ def get_all_places(place_type, location):
 
 category_icons = {
     "restaurant": "utensils",
-    "bus_station": "bus",
+    "transit_station": "bus",
     "real_estate_agency": "building"
 }
 
 category_colors = {
     "restaurant": "red",
-    "bus_station": "blue",
+    "transit_station": "blue",
     "real_estate_agency": "green"
 }
 
@@ -86,7 +80,7 @@ if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando lugares en Bogotá..."):
         user_location = st.session_state["ubicacion_usuario"]
         places_data = {}
-        categories = ["restaurant", "bus_station", "real_estate_agency"]
+        categories = ["restaurant", "transit_station", "real_estate_agency"]
         progress_bar = st.progress(0)
         
         heatmap_data = []
