@@ -7,7 +7,7 @@ import folium
 from folium.plugins import HeatMap, MarkerCluster
 import os
 
-st.title("📍 Mapa de Lugares en Bogotá")
+st.title("📍 Mapa de Restaurantes en Bogotá")
 
 # Cargar variables de entorno
 load_dotenv()
@@ -64,52 +64,25 @@ def get_all_places(place_type, location):
             break
     return list(places.values())
 
-category_icons = {
-    "restaurant": "utensils",
-    "transit_station": "bus",
-    "real_estate_agency": "building"
-}
-
-category_colors = {
-    "restaurant": "red",
-    "transit_station": "blue",
-    "real_estate_agency": "green"
-}
-
 if st.button("Iniciar Búsqueda"):
-    with st.spinner("Buscando lugares en Bogotá..."):
+    with st.spinner("Buscando restaurantes en Bogotá..."):
         user_location = st.session_state["ubicacion_usuario"]
-        places_data = {}
-        categories = ["restaurant", "transit_station", "real_estate_agency"]
-        progress_bar = st.progress(0)
+        places_data = get_all_places("restaurant", user_location)
         
         heatmap_data = []
         mapa = folium.Map(location=user_location, zoom_start=12)
         marker_cluster = MarkerCluster().add_to(mapa)
         
-        for i, category in enumerate(categories):
-            places_data[category] = get_all_places(category, user_location)
-            progress_bar.progress((i + 1) / len(categories))
-            st.write(f"{len(places_data[category])} lugares encontrados en {category}")
-            
-            for place in places_data[category]:
-                if "geometry" in place and "location" in place["geometry"]:
-                    lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
-                    heatmap_data.append([lat, lon])
-        
-        progress_bar.empty()
-        
-        folium.Marker(user_location, popup="Ubicación seleccionada", icon=folium.Icon(color="black", icon="info-sign")).add_to(mapa)
-        
-        for category, places in places_data.items():
-            for place in places:
-                if "geometry" in place and "location" in place["geometry"]:
-                    lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
-                    folium.Marker(
-                        [lat, lon],
-                        popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}\nDirección: {place.get('vicinity', 'No disponible')}\nTipo: {category}",
-                        icon=folium.Icon(color=category_colors.get(category, "gray"), icon=category_icons.get(category, "info-sign"), prefix='fa')
-                    ).add_to(marker_cluster)
+        for place in places_data:
+            if "geometry" in place and "location" in place["geometry"]:
+                lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
+                heatmap_data.append([lat, lon])
+                
+                folium.Marker(
+                    [lat, lon],
+                    popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}\nDirección: {place.get('vicinity', 'No disponible')}",
+                    icon=folium.Icon(color="red", icon="utensils", prefix='fa')
+                ).add_to(marker_cluster)
         
         HeatMap(heatmap_data).add_to(mapa)
         folium_static(mapa)
