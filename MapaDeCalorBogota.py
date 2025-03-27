@@ -34,7 +34,12 @@ if "ubicacion_usuario" not in st.session_state:
 if "direccion_obtenida" not in st.session_state:
     st.session_state["direccion_obtenida"] = ""
 
-def get_all_places(place_type, bounds):
+if mapa_data["last_clicked"]:
+    lat, lon = mapa_data["last_clicked"]["lat"], mapa_data["last_clicked"]["lng"]
+    st.session_state["ubicacion_usuario"] = [lat, lon]
+    st.success(f"Ubicación seleccionada: {lat}, {lon}")
+
+def get_all_places(place_type, location):
     places = {}
     next_page_token = None
     while True:
@@ -42,21 +47,20 @@ def get_all_places(place_type, bounds):
             if next_page_token:
                 time.sleep(2)
                 results = gmaps.places_nearby(
-                    location=[4.60971, -74.08175],
+                    location=location,
                     radius=25000,  # 25 km para cubrir el área metropolitana
                     type=place_type,
                     page_token=next_page_token
                 )
             else:
                 results = gmaps.places_nearby(
-                    location=[4.60971, -74.08175],
+                    location=location,
                     radius=25000,
                     type=place_type
                 )
             
             for place in results.get("results", []):
-                if place.get("rating", 0) >= 3.5:
-                    places[place["place_id"]] = place
+                places[place["place_id"]] = place
             
             next_page_token = results.get("next_page_token")
             if not next_page_token:
@@ -90,7 +94,7 @@ if st.button("Iniciar Búsqueda"):
         marker_cluster = MarkerCluster().add_to(mapa)
         
         for i, category in enumerate(categories):
-            places_data[category] = get_all_places(category, bogota_bounds)
+            places_data[category] = get_all_places(category, user_location)
             progress_bar.progress((i + 1) / len(categories))
             st.write(f"{len(places_data[category])} lugares encontrados en {category}")
             
