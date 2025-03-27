@@ -35,7 +35,10 @@ locations_dict = {
 user_location_name = st.selectbox("Ubicación", list(locations_dict.keys()))
 user_location = locations_dict[user_location_name]
 
-def get_all_places(place_types, location, radius=5000):
+# Radio reducido a 5km
+SEARCH_RADIUS = 5000
+
+def get_all_places(place_types, location, radius=SEARCH_RADIUS):
     places = {}
     for place_type in place_types:
         next_page_token = None
