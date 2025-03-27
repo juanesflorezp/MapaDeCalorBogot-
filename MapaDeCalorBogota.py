@@ -107,7 +107,7 @@ if st.button("Iniciar Búsqueda"):
                     lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
                     folium.Marker(
                         [lat, lon],
-                        popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}\nDirección: {place.get('vicinity', 'No disponible')}",
+                        popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}\nDirección: {place.get('vicinity', 'No disponible')}\nTipo: {category}",
                         icon=folium.Icon(color=category_colors.get(category, "gray"), icon=category_icons.get(category, "info-sign"), prefix='fa')
                     ).add_to(marker_cluster)
         
