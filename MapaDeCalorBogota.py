@@ -27,46 +27,50 @@ locations = [
     [4.6351, -74.0703],    # Chapinero
     [4.6570, -74.0934],    # Teusaquillo
     [4.6768, -74.0484],    # Usaquén
-    [4.7041, -74.0424]     # Suba
+    [4.7041, -74.0424],    # Suba
+    [4.6720, -74.0575],    # Parque de la 93
+    [4.6823, -74.0532]     # Zona T
 ]
 
-def get_all_places(place_type, locations, radius=5000):
+def get_all_places(place_types, locations, radius=4000):
     places = {}
     for location in locations:
-        next_page_token = None
-        attempts = 0
-        while attempts < 3:  # Intentar hasta 3 páginas de resultados por ubicación
-            try:
-                # Hacer la solicitud con o sin token de paginación
-                params = {"location": location, "radius": radius, "type": place_type}
-                if next_page_token:
-                    params["page_token"] = next_page_token
-                    time.sleep(2)  # Google recomienda esperar antes de usar el token
+        for place_type in place_types:
+            next_page_token = None
+            attempts = 0
+            while attempts < 3:  # Intentar hasta 3 páginas de resultados por ubicación
+                try:
+                    params = {"location": location, "radius": radius, "type": place_type}
+                    if next_page_token:
+                        params["page_token"] = next_page_token
+                        time.sleep(2)  # Google recomienda esperar antes de usar el token
 
-                results = gmaps.places_nearby(**params)
+                    results = gmaps.places_nearby(**params)
 
-                for place in results.get("results", []):
-                    places[place["place_id"]] = place
+                    for place in results.get("results", []):
+                        places[place["place_id"]] = place
 
-                # Verificar si hay más páginas
-                next_page_token = results.get("next_page_token")
-                if not next_page_token:
-                    break  # No hay más resultados
-                
-                attempts += 1
-            except Exception as e:
-                st.warning(f"Error al obtener lugares para {place_type}: {e}")
-                break
+                    next_page_token = results.get("next_page_token")
+                    if not next_page_token:
+                        break  # No hay más resultados
+                    
+                    attempts += 1
+                except Exception as e:
+                    st.warning(f"Error al obtener lugares para {place_type}: {e}")
+                    break
     
     return list(places.values())
 
 if st.button("Iniciar Búsqueda"):
     with st.spinner("Buscando lugares en Bogotá..."):
-        categories = ["bar", "cafe", "restaurant", "office", "transit_station"]
+        categories = [
+            "bar", "cafe", "restaurant", "office", "transit_station",
+            "night_club", "bakery", "co_working_space", "shopping_mall"
+        ]
         places_data = {category: [] for category in categories}
         
         for category in categories:
-            places_data[category] = get_all_places(category, locations)
+            places_data[category] = get_all_places([category], locations)
         
         # Guardar resultados en un archivo JSON
         with open("places_data.json", "w") as f:
@@ -82,8 +86,16 @@ if st.button("Generar Mapa"):
         # Crear mapa
         mapa = folium.Map(location=[4.6351, -74.0703], zoom_start=12)
         marker_cluster = MarkerCluster().add_to(mapa)
-        colors = {"restaurant": "red", "cafe": "brown", "bar": "blue", "office": "green", "transit_station": "purple"}
-        icons = {"restaurant": "utensils", "cafe": "coffee", "bar": "beer", "office": "building", "transit_station": "bus"}
+        colors = {
+            "restaurant": "red", "cafe": "brown", "bar": "blue", "office": "green",
+            "transit_station": "purple", "night_club": "darkblue", "bakery": "orange",
+            "co_working_space": "lightgreen", "shopping_mall": "pink"
+        }
+        icons = {
+            "restaurant": "utensils", "cafe": "coffee", "bar": "beer", "office": "building",
+            "transit_station": "bus", "night_club": "music", "bakery": "bread-slice",
+            "co_working_space": "briefcase", "shopping_mall": "shopping-cart"
+        }
         
         # Agregar marcadores
         for category, places in places_data.items():
@@ -93,7 +105,7 @@ if st.button("Generar Mapa"):
                     folium.Marker(
                         [lat, lon],
                         popup=f"{place['name']} - {category.replace('_', ' ').capitalize()}\nDirección: {place.get('vicinity', 'No disponible')}",
-                        icon=folium.Icon(color=colors[category], icon=icons[category], prefix='fa')
+                        icon=folium.Icon(color=colors.get(category, "gray"), icon=icons.get(category, "map-marker"), prefix='fa')
                     ).add_to(marker_cluster)
         
         folium_static(mapa)
