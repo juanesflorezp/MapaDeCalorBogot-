@@ -16,7 +16,7 @@ st.title("📍 Mapa de Calor de Bogotá")
 
 # Cargar API Key
 load_dotenv()
-API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" 
 
 if not API_KEY:
     st.error("Por favor define GOOGLE_MAPS_API_KEY en tu archivo .env")
