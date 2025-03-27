@@ -36,26 +36,31 @@ if mapa_data["last_clicked"]:
 def get_all_places(place_type, location):
     places = {}
     next_page_token = None
+    attempts = 0
     while True:
         try:
-            results = gmaps.places_nearby(
-                location=location,
-                radius=20000,  # Ampliar radio a 20 km
-                type=place_type,
-                page_token=next_page_token
-            ) if next_page_token else gmaps.places_nearby(
-                location=location,
-                radius=20000,
-                type=place_type
-            )
+            if next_page_token:
+                time.sleep(2)
+                results = gmaps.places_nearby(
+                    location=location,
+                    radius=20000,  # Ampliar radio a 20 km
+                    type=place_type,
+                    page_token=next_page_token
+                )
+            else:
+                results = gmaps.places_nearby(
+                    location=location,
+                    radius=20000,
+                    type=place_type
+                )
             
             for place in results.get("results", []):
                 places[place["place_id"]] = place
             
             next_page_token = results.get("next_page_token")
-            if not next_page_token:
+            attempts += 1
+            if not next_page_token or attempts >= 5:  # Intentar hasta 5 páginas
                 break
-            time.sleep(2)  # Esperar para obtener más resultados
         except Exception as e:
             st.warning(f"Error al obtener lugares para {place_type}: {e}")
             break
@@ -67,7 +72,7 @@ if st.button("Iniciar Búsqueda"):
         places_data = []
         
         # Hacer múltiples llamadas para asegurar la máxima cantidad de resultados
-        for _ in range(3):  # Intentar obtener más resultados con múltiples llamados
+        for _ in range(5):  # Intentar obtener más resultados con múltiples llamados
             new_places = get_all_places("restaurant", user_location)
             places_data.extend(new_places)
             time.sleep(2)  # Pausa para evitar limitaciones de API
