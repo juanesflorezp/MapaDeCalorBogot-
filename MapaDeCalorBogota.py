@@ -11,7 +11,7 @@ st.title("📍 Mapa de Restaurantes en Bogotá")
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" 
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
@@ -90,9 +90,9 @@ if st.button("Iniciar Búsqueda"):
                 
                 folium.Marker(
                     [lat, lon],
-                    popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}\nDirección: {place.get('vicinity', 'No disponible')}",
+                    popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}\nDirección: {place.get('vicinity', 'No disponible')}\nTotal Reviews: {place.get('user_ratings_total', 'N/A')}\nPrice Level: {place.get('price_level', 'N/A')}",
                     icon=folium.Icon(color="red", icon="utensils", prefix='fa')
                 ).add_to(marker_cluster)
         
-        HeatMap(heatmap_data).add_to(mapa)
+        HeatMap(heatmap_data, min_opacity=0.5, radius=15, blur=10).add_to(mapa)
         folium_static(mapa)
