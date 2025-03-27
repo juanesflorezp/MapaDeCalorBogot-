@@ -37,14 +37,14 @@ user_location = locations_dict[user_location_name]
 
 # Radio reducido a 5km
 SEARCH_RADIUS = 5000
-MAX_RESULTS_PER_CATEGORY = 40
+MAX_RESULTS_PER_CATEGORY = 100
 
 
 def get_all_places(place_type, location, radius=SEARCH_RADIUS, max_results=MAX_RESULTS_PER_CATEGORY):
     places = {}
     next_page_token = None
     attempts = 0
-    while attempts < 10 and len(places) < max_results:
+    while attempts < 20 and len(places) < max_results:
         try:
             params = {"location": location, "radius": radius, "type": place_type}
             if next_page_token:
