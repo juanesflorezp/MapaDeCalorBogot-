@@ -2,47 +2,43 @@ import streamlit as st
 import googlemaps
 import time
 from dotenv import load_dotenv
-from streamlit_folium import folium_static, st_folium
+from streamlit_folium import folium_static
 import folium
 from folium.plugins import HeatMap, MarkerCluster
+import math
 import os
 
-st.title("📍 Mapa de Lugares en Bogotá")
+st.set_page_config(page_title="Mapa Lugares Bogotá", layout="wide")
+st.title("📍 Mapa de Lugares en Bogotá — Modo Turbo")
 
-# Cargar API KEY
+# Cargar API Key
 load_dotenv()
 API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+
 if not API_KEY:
-    st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en .env")
+    st.error("API Key no encontrada.")
     st.stop()
 
-# Cliente Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-# Coordenadas iniciales (norte de Bogotá)
-ubicacion_bogota = [4.710989, -74.072090]
+# --- Configuración ---
+ubicacion_ciudad = [4.6805, -74.0451]  # Zona Parque El Virrey
+radio = 700  # 700 metros
+grid_size = 6  # 6x6 cuadrantes (36 puntos)
 
-# Categorías personalizadas
 categories = {
-    "coworking": {"keyword": "Coworking", "color": "red", "icon": "building"},
-    "oficinas": {"keyword": "Oficinas", "color": "purple", "icon": "briefcase"},
-    "transmilenio": {"keyword": "Estación TransMilenio", "color": "green", "icon": "bus"},
+    "restaurant": {"type": "restaurant", "color": "red", "icon": "utensils"},
+    "bar": {"type": "bar", "color": "purple", "icon": "cocktail"},
+    "coworking": {"keyword": "Coworking", "color": "green", "icon": "building"},
+    "oficinas": {"keyword": "Oficinas", "color": "blue", "icon": "briefcase"},
+    "transmilenio": {"keyword": "Estación TransMilenio", "color": "orange", "icon": "bus"}
 }
 
-# Dividir Bogotá en cuadrantes
-def generar_cuadrantes(centro, radio, num_cuadrantes):
-    cuadrantes = []
-    lat, lon = centro
-    delta = radio / 111320  # metros a grados
-    for i in range(num_cuadrantes):
-        for j in range(num_cuadrantes):
-            cuadrantes.append((lat + i * delta, lon + j * delta))
-    return cuadrantes
+# --- FUNCIONES ---
 
-def get_all_places(location, radius, category_key, category_info):
+def get_all_places(location, radius, search_type=None, keyword=None):
     places = {}
     next_page_token = None
-
     while True:
         try:
             if next_page_token:
@@ -50,83 +46,89 @@ def get_all_places(location, radius, category_key, category_info):
                 results = gmaps.places_nearby(
                     location=location,
                     radius=radius,
-                    keyword=category_info.get("keyword"),
+                    type=search_type,
+                    keyword=keyword,
                     page_token=next_page_token
                 )
             else:
                 results = gmaps.places_nearby(
                     location=location,
                     radius=radius,
-                    keyword=category_info.get("keyword")
+                    type=search_type,
+                    keyword=keyword
                 )
 
             for place in results.get("results", []):
-                place_id = place["place_id"]
-                place["category_key"] = category_key  # 🔥 Guardamos la categoría
-                places[place_id] = place
+                if place.get("rating", 0) >= 3.5:
+                    places[place["place_id"]] = place
 
             next_page_token = results.get("next_page_token")
             if not next_page_token:
                 break
         except Exception as e:
-            st.warning(f"Error obteniendo lugares ({category_key}): {e}")
+            st.warning(f"Error buscando '{keyword or search_type}': {e}")
             break
-
     return list(places.values())
 
-# ✅ Selector para definir cantidad de cuadrantes
-num_cuadrantes = st.slider("Número de cuadrantes para ampliar búsqueda:", min_value=2, max_value=8, value=3, step=1)
-st.caption(f"Entre más cuadrantes, más resultados (y más tiempo de búsqueda). Actualmente: {num_cuadrantes**2} cuadrantes")
+def generar_grid(centro, distancia, puntos):
+    lat_centro, lon_centro = centro
+    grid = []
+    delta = distancia / 111000  # Aproximado: 1° lat ~ 111 km
 
-if st.button("🔍 Buscar lugares"):
-    with st.spinner("Buscando lugares en Bogotá..."):
-        radio = 1000  # 1km por cuadrante
-        cuadrantes = generar_cuadrantes(ubicacion_bogota, radio, num_cuadrantes)
+    for i in range(-puntos, puntos + 1):
+        for j in range(-puntos, puntos + 1):
+            lat = lat_centro + i * delta
+            lon = lon_centro + j * delta
+            grid.append((lat, lon))
+    return grid
 
-        all_places = []
+if st.button("🚀 Iniciar Búsqueda (Modo Turbo)"):
+    with st.spinner("Buscando en múltiples cuadrantes..."):
+        grid = generar_grid(ubicacion_ciudad, radio * 1.5, grid_size)
+        st.write(f"Buscando en {len(grid)} puntos. Esto puede tomar unos minutos...")
+
+        all_places = {}
         progress = st.progress(0)
-        total = len(categories) * len(cuadrantes)
-        counter = 0
+        total = len(grid) * len(categories)
 
-        for category_key, category_info in categories.items():
-            for centro in cuadrantes:
-                places = get_all_places(centro, radio, category_key, category_info)
-                all_places.extend(places)
-                counter += 1
-                progress.progress(counter / total)
+        heatmap_data = []
+        mapa = folium.Map(location=ubicacion_ciudad, zoom_start=13)
+        marker_cluster = MarkerCluster().add_to(mapa)
+
+        count = 0
+        for (lat, lon) in grid:
+            for key, info in categories.items():
+                places = get_all_places(
+                    location=(lat, lon),
+                    radius=radio,
+                    search_type=info.get("type"),
+                    keyword=info.get("keyword")
+                )
+                for place in places:
+                    all_places[place["place_id"]] = place
+                count += 1
+                progress.progress(count / total)
 
         progress.empty()
+        st.success(f"✅ {len(all_places)} lugares encontrados (sin duplicados)")
 
-        # Mostrar en el mapa
-        mapa = folium.Map(location=ubicacion_bogota, zoom_start=12)
-        marker_cluster = MarkerCluster().add_to(mapa)
-        heatmap_data = []
-
-        for place in all_places:
-            lat = place["geometry"]["location"]["lat"]
-            lon = place["geometry"]["location"]["lng"]
-            name = place.get("name", "Lugar")
-            rating = place.get("rating", "N/A")
-
-            # Recuperar categoría
-            category_key = place.get("category_key")
-            if category_key and category_key in categories:
-                color = categories[category_key]["color"]
-                icon = categories[category_key]["icon"]
+        for place in all_places.values():
+            lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
+            heatmap_data.append([lat, lon])
+            for key, info in categories.items():
+                if (info.get("type") == place.get("types", [None])[0]) or (info.get("keyword") and info["keyword"].lower() in place["name"].lower()):
+                    color = info["color"]
+                    icon = info["icon"]
+                    break
             else:
-                color = "cadetblue"
+                color = "gray"
                 icon = "info-sign"
 
             folium.Marker(
                 [lat, lon],
-                popup=f"{name} - Rating: {rating}",
+                popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}",
                 icon=folium.Icon(color=color, icon=icon, prefix='fa')
             ).add_to(marker_cluster)
 
-            heatmap_data.append([lat, lon])
-
         HeatMap(heatmap_data).add_to(mapa)
         folium_static(mapa)
-
-        st.success(f"✅ {len(all_places)} lugares encontrados y marcados")
-
