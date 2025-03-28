@@ -21,7 +21,7 @@ if not API_KEY:
 gmaps = googlemaps.Client(key=API_KEY)
 
 # --- Configuración ---
-ubicacion_ciudad = [4.60971, -74.08175]
+ubicacion_ciudad = [4.6805, -74.0451]  # Cerca de Parque El Virrey
 radio = 1000  # 1 km por punto
 grid_size = st.slider("Tamaño de la cuadrícula (número de puntos por eje)", 2, 10, 3)
 
