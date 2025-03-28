@@ -8,11 +8,12 @@ from folium.plugins import HeatMap, MarkerCluster
 import math
 import os
 
-st.title("📍 Lugares en Bogotá (Búsqueda Avanzada)")
+st.set_page_config(page_title="Mapa Lugares Bogotá", layout="wide")
+st.title("📍 Mapa de Lugares en Bogotá — Modo Turbo")
 
 # Cargar API Key
 load_dotenv()
-API_KEY =  "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
 
 if not API_KEY:
     st.error("API Key no encontrada.")
@@ -21,9 +22,9 @@ if not API_KEY:
 gmaps = googlemaps.Client(key=API_KEY)
 
 # --- Configuración ---
-ubicacion_ciudad = [4.6805, -74.0451]  # Cerca de Parque El Virrey
-radio = 1000  # 1 km por punto
-grid_size = st.slider("Tamaño de la cuadrícula (número de puntos por eje)", 2, 10, 3)
+ubicacion_ciudad = [4.6805, -74.0451]  # Zona Parque El Virrey
+radio = 700  # 700 metros
+grid_size = 6  # 6x6 cuadrantes (36 puntos)
 
 categories = {
     "restaurant": {"type": "restaurant", "color": "red", "icon": "utensils"},
@@ -70,7 +71,6 @@ def get_all_places(location, radius, search_type=None, keyword=None):
     return list(places.values())
 
 def generar_grid(centro, distancia, puntos):
-    """Genera un grid de puntos alrededor de un centro."""
     lat_centro, lon_centro = centro
     grid = []
     delta = distancia / 111000  # Aproximado: 1° lat ~ 111 km
@@ -82,10 +82,11 @@ def generar_grid(centro, distancia, puntos):
             grid.append((lat, lon))
     return grid
 
-if st.button("🔍 Buscar Lugares"):
-    with st.spinner("Buscando en múltiples zonas..."):
+if st.button("🚀 Iniciar Búsqueda (Modo Turbo)"):
+    with st.spinner("Buscando en múltiples cuadrantes..."):
         grid = generar_grid(ubicacion_ciudad, radio * 1.5, grid_size)
-        st.write(f"Buscando en {len(grid)} puntos...")
+        st.write(f"Buscando en {len(grid)} puntos. Esto puede tomar unos minutos...")
+
         all_places = {}
         progress = st.progress(0)
         total = len(grid) * len(categories)
