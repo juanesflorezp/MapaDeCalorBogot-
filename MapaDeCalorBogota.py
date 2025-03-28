@@ -53,13 +53,14 @@ if mapa_data["last_clicked"]:
     st.success(f"Ubicación personalizada seleccionada: {lat}, {lon}")
 
 
-def get_all_places(place_type, location, radius=1000, max_results=100):
+def get_places(category, location, radius=1000, max_results=100):
     places = {}
     next_page_token = None
     attempts = 0
+
     while attempts < 20 and len(places) < max_results:
         try:
-            params = {"location": location, "radius": radius, "type": place_type}
+            params = {"location": location, "radius": radius, "type": category}
             if next_page_token:
                 params["page_token"] = next_page_token
                 time.sleep(2)
@@ -77,7 +78,7 @@ def get_all_places(place_type, location, radius=1000, max_results=100):
 
             attempts += 1
         except Exception as e:
-            st.warning(f"Error al obtener lugares para {place_type}: {e}")
+            st.warning(f"Error al obtener lugares para {category}: {e}")
             break
 
     return list(places.values())
@@ -87,14 +88,10 @@ def get_offices(location, radius=1000, max_results=100):
     places = {}
     next_page_token = None
     attempts = 0
+
     while attempts < 20 and len(places) < max_results:
         try:
-            params = {
-                "location": location,
-                "radius": radius,
-                "type": "point_of_interest",
-                "keyword": "oficina"
-            }
+            params = {"location": location, "radius": radius, "keyword": "oficina", "type": "point_of_interest"}
             if next_page_token:
                 params["page_token"] = next_page_token
                 time.sleep(2)
@@ -130,12 +127,12 @@ if st.button("Iniciar Búsqueda"):
         places_data["office"] = []
 
         for category in categories:
-            places_data[category] = get_all_places(category, search_location, radius=radio, max_results=max_results)
+            places_data[category] = get_places(category, search_location, radius=radio, max_results=max_results)
             st.write(f"{len(places_data[category])} lugares encontrados en {category}")
 
-        # Buscar oficinas
-        places_data["office"] = get_offices(search_location, radius=radio, max_results=max_results)
-        st.write(f"{len(places_data['office'])} oficinas encontradas")
+        offices = get_offices(search_location, radius=radio, max_results=max_results)
+        places_data["office"] = offices
+        st.write(f"{len(offices)} oficinas encontradas")
 
         # Guardar resultados en un archivo JSON
         file_name = f"places_data_{user_location_name}.json"
