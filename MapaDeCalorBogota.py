@@ -1,19 +1,17 @@
 import streamlit as st
 import googlemaps
-import pandas as pd
 import time
 from dotenv import load_dotenv
 from streamlit_folium import folium_static, st_folium
 import folium
 from folium.plugins import HeatMap, MarkerCluster
 import os
-import math
 
 st.title("📍 Mapa de Lugares en Bogotá")
 
 # Cargar API KEY
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en .env")
@@ -32,11 +30,11 @@ categories = {
     "transmilenio": {"keyword": "Estación TransMilenio", "color": "green", "icon": "bus"},
 }
 
-# Dividir Bogotá en cuadrantes para más resultados
+# Dividir Bogotá en cuadrantes
 def generar_cuadrantes(centro, radio, num_cuadrantes):
     cuadrantes = []
     lat, lon = centro
-    delta = radio / 111320  # Aprox. metros a grados
+    delta = radio / 111320  # metros a grados
     for i in range(num_cuadrantes):
         for j in range(num_cuadrantes):
             cuadrantes.append((lat + i * delta, lon + j * delta))
@@ -77,10 +75,13 @@ def get_all_places(location, radius, category_key, category_info):
 
     return list(places.values())
 
+# ✅ Selector para definir cantidad de cuadrantes
+num_cuadrantes = st.slider("Número de cuadrantes para ampliar búsqueda:", min_value=2, max_value=8, value=3, step=1)
+st.caption(f"Entre más cuadrantes, más resultados (y más tiempo de búsqueda). Actualmente: {num_cuadrantes**2} cuadrantes")
+
 if st.button("🔍 Buscar lugares"):
     with st.spinner("Buscando lugares en Bogotá..."):
         radio = 1000  # 1km por cuadrante
-        num_cuadrantes = 3  # Ajusta si quieres más resultados
         cuadrantes = generar_cuadrantes(ubicacion_bogota, radio, num_cuadrantes)
 
         all_places = []
