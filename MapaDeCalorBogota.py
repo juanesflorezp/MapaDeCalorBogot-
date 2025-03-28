@@ -22,7 +22,7 @@ gmaps = googlemaps.Client(key=API_KEY)
 
 # Ubicación fija: Bogotá
 ubicacion_ciudad = [4.60971, -74.08175]
-radio = 1000  # Radio fijo
+radio = 10000  # Radio fijo
 
 st.info("Buscando restaurantes, bares, coworkings, oficinas y estaciones de TransMilenio (biarticulado) en el centro de Bogotá")
 
