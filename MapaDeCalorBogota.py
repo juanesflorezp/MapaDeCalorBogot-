@@ -1,18 +1,17 @@
 import streamlit as st
 import googlemaps
 import time
-import json
 from dotenv import load_dotenv
-from streamlit_folium import folium_static, st_folium
+from streamlit_folium import folium_static
 import folium
-from folium.plugins import MarkerCluster
+from folium.plugins import HeatMap, MarkerCluster
 import os
 
-st.title("📍 Mapa de Bogotá: Lugares de Interés")
+st.title("📍 Mapa de Lugares en Bogotá")
 
 # Cargar variables de entorno
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" 
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
 
 if not API_KEY:
     st.error("API Key no encontrada. Asegúrate de definir GOOGLE_MAPS_API_KEY en un archivo .env")
@@ -21,155 +20,97 @@ if not API_KEY:
 # Inicializar cliente de Google Maps
 gmaps = googlemaps.Client(key=API_KEY)
 
-# Selección de ubicación por el usuario
-st.subheader("Selecciona una ubicación en Bogotá")
-locations_dict = {
-    "Centro": [4.60971, -74.08175],
-    "Chapinero": [4.6351, -74.0703],
-    "Teusaquillo": [4.6570, -74.0934],
-    "Usaquén": [4.6768, -74.0484],
-    "Suba": [4.7041, -74.0424],
-    "Parque de la 93": [4.6720, -74.0575],
-    "Zona T": [4.6823, -74.0532]
+# Ubicación fija: Bogotá
+ubicacion_ciudad = [4.60971, -74.08175]
+radio = 1000  # Radio fijo
+
+st.info("Buscando restaurantes, bares, coworkings, oficinas y estaciones de TransMilenio (biarticulado) en el centro de Bogotá")
+
+# --- FUNCIONES ---
+
+def get_all_places(location, radius, search_type=None, keyword=None):
+    places = {}
+    next_page_token = None
+    while True:
+        try:
+            if next_page_token:
+                time.sleep(2)
+                results = gmaps.places_nearby(
+                    location=location,
+                    radius=radius,
+                    type=search_type,
+                    keyword=keyword,
+                    page_token=next_page_token
+                )
+            else:
+                results = gmaps.places_nearby(
+                    location=location,
+                    radius=radius,
+                    type=search_type,
+                    keyword=keyword
+                )
+            
+            for place in results.get("results", []):
+                if place.get("rating", 0) >= 3.5:
+                    places[place["place_id"]] = place
+            
+            next_page_token = results.get("next_page_token")
+            if not next_page_token:
+                break
+        except Exception as e:
+            st.warning(f"Error buscando '{keyword or search_type}': {e}")
+            break
+    return list(places.values())
+
+# --- CATEGORÍAS PERSONALIZADAS ---
+
+categories = {
+    "restaurant": {"type": "restaurant", "color": "red", "icon": "utensils"},
+    "bar": {"type": "bar", "color": "purple", "icon": "cocktail"},
+    "coworking": {"keyword": "Coworking", "color": "green", "icon": "building"},
+    "oficinas": {"keyword": "Oficinas", "color": "blue", "icon": "briefcase"},
+    "transmilenio": {"keyword": "Estación TransMilenio", "color": "orange", "icon": "bus"}
 }
-user_location_name = st.selectbox("Ubicación", list(locations_dict.keys()))
-user_location = locations_dict[user_location_name]
 
-# Radio y cantidad de resultados configurables
-radio = st.slider("Selecciona el radio de búsqueda (metros):", min_value=100, max_value=5000, value=1000, step=100)
-max_results = st.slider("Cantidad mínima de resultados por categoría:", min_value=20, max_value=200, value=100, step=10)
+if st.button("🔍 Buscar Lugares Cercanos"):
+    with st.spinner("Buscando lugares..."):
+        user_location = ubicacion_ciudad
+        places_data = {}
+        progress_bar = st.progress(0)
 
-opcion_busqueda = st.radio("¿Cómo quieres buscar?", ("Usar ubicación seleccionada", "Seleccionar ubicación en el mapa"))
-
-if "ubicacion_usuario" not in st.session_state:
-    st.session_state["ubicacion_usuario"] = None
-
-mapa = folium.Map(location=user_location, zoom_start=14)
-mapa_data = st_folium(mapa, width=700, height=500)
-
-if mapa_data["last_clicked"]:
-    lat, lon = mapa_data["last_clicked"]["lat"], mapa_data["last_clicked"]["lng"]
-    st.session_state["ubicacion_usuario"] = (lat, lon)
-    st.success(f"Ubicación personalizada seleccionada: {lat}, {lon}")
-
-
-def get_places(category, location, radius=1000, max_results=100):
-    places = {}
-    next_page_token = None
-    attempts = 0
-
-    while attempts < 20 and len(places) < max_results:
-        try:
-            params = {"location": location, "radius": radius, "type": category}
-            if next_page_token:
-                params["page_token"] = next_page_token
-                time.sleep(2)
-
-            results = gmaps.places_nearby(**params)
-
-            for place in results.get("results", []):
-                places[place["place_id"]] = place
-                if len(places) >= max_results:
-                    break
-
-            next_page_token = results.get("next_page_token")
-            if not next_page_token or len(places) >= max_results:
-                break
-
-            attempts += 1
-        except Exception as e:
-            st.warning(f"Error al obtener lugares para {category}: {e}")
-            break
-
-    return list(places.values())
-
-
-def get_offices(location, radius=1000, max_results=100):
-    places = {}
-    next_page_token = None
-    attempts = 0
-
-    while attempts < 20 and len(places) < max_results:
-        try:
-            params = {"location": location, "radius": radius, "keyword": "oficina", "type": "point_of_interest"}
-            if next_page_token:
-                params["page_token"] = next_page_token
-                time.sleep(2)
-
-            results = gmaps.places_nearby(**params)
-
-            for place in results.get("results", []):
-                places[place["place_id"]] = place
-                if len(places) >= max_results:
-                    break
-
-            next_page_token = results.get("next_page_token")
-            if not next_page_token or len(places) >= max_results:
-                break
-
-            attempts += 1
-        except Exception as e:
-            st.warning(f"Error al obtener oficinas: {e}")
-            break
-
-    return list(places.values())
-
-
-if st.button("Iniciar Búsqueda"):
-    with st.spinner(f"Buscando lugares en {user_location_name}..."):
-        if opcion_busqueda == "Seleccionar ubicación en el mapa" and st.session_state["ubicacion_usuario"]:
-            search_location = st.session_state["ubicacion_usuario"]
-        else:
-            search_location = user_location
-
-        categories = ["bar", "cafe", "restaurant", "transit_station"]
-        places_data = {category: [] for category in categories}
-        places_data["office"] = []
-
-        for category in categories:
-            places_data[category] = get_places(category, search_location, radius=radio, max_results=max_results)
-            st.write(f"{len(places_data[category])} lugares encontrados en {category}")
-
-        offices = get_offices(search_location, radius=radio, max_results=max_results)
-        places_data["office"] = offices
-        st.write(f"{len(offices)} oficinas encontradas")
-
-        # Guardar resultados en un archivo JSON
-        file_name = f"places_data_{user_location_name}.json"
-        with open(file_name, "w") as f:
-            json.dump(places_data, f)
-        st.success(f"Datos guardados correctamente en {file_name}")
-
-# Botón para generar el mapa desde el archivo guardado
-if st.button("Generar Mapa"):
-    file_name = f"places_data_{user_location_name}.json"
-    try:
-        with open(file_name, "r") as f:
-            places_data = json.load(f)
-
-        # Crear mapa
-        mapa = folium.Map(location=user_location, zoom_start=14)
+        heatmap_data = []
+        mapa = folium.Map(location=user_location, zoom_start=15)
         marker_cluster = MarkerCluster().add_to(mapa)
-        colors = {
-            "restaurant": "red", "cafe": "brown", "bar": "blue", "office": "green",
-            "transit_station": "purple"
-        }
-        icons = {
-            "restaurant": "utensils", "cafe": "coffee", "bar": "beer", "office": "building",
-            "transit_station": "bus"
-        }
 
-        # Agregar marcadores
-        for category, places in places_data.items():
+        for i, (key, info) in enumerate(categories.items()):
+            st.write(f"Buscando: {key}")
+            places = get_all_places(
+                location=user_location,
+                radius=radio,
+                search_type=info.get("type"),
+                keyword=info.get("keyword")
+            )
+            places_data[key] = places
+            progress_bar.progress((i + 1) / len(categories))
+            st.write(f"{len(places)} lugares encontrados en {key}")
+
             for place in places:
-                if "geometry" in place and "location" in place["geometry"]:
-                    lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
-                    folium.Marker(
-                        [lat, lon],
-                        popup=f"{place['name']} - {category.replace('_', ' ').capitalize()}\nDirección: {place.get('vicinity', 'No disponible')}",
-                        icon=folium.Icon(color=colors.get(category, "gray"), icon=icons.get(category, "map-marker"), prefix='fa')
-                    ).add_to(marker_cluster)
+                heatmap_data.append([place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]])
 
+        progress_bar.empty()
+
+        folium.Marker(user_location, popup="Centro de Bogotá", icon=folium.Icon(color="black", icon="info-sign")).add_to(mapa)
+
+        for key, places in places_data.items():
+            color = categories[key]["color"]
+            icon = categories[key]["icon"]
+            for place in places:
+                lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
+                folium.Marker(
+                    [lat, lon],
+                    popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}",
+                    icon=folium.Icon(color=color, icon=icon, prefix='fa')
+                ).add_to(marker_cluster)
+
+        HeatMap(heatmap_data).add_to(mapa)
         folium_static(mapa)
-    except FileNotFoundError:
-        st.error(f"No se encontró el archivo {file_name}. Primero realiza la búsqueda.")
