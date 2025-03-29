@@ -90,7 +90,7 @@ if st.button("🚀 Iniciar Búsqueda (Modo Turbo)"):
         total = len(grid) * len(categories)
 
         heatmap_data = []
-        mapa = folium.Map(location=ubicacion_ciudad, zoom_start=13)
+        mapa = folium.Map(location=ubicacion_ciudad, zoom_start=13, width='100%', height='800px')
         marker_cluster = MarkerCluster().add_to(mapa)
 
         count = 0
@@ -129,4 +129,4 @@ if st.button("🚀 Iniciar Búsqueda (Modo Turbo)"):
             ).add_to(marker_cluster)
 
         HeatMap(heatmap_data).add_to(mapa)
-        folium_static(mapa)
+        folium_static(mapa, width=1500, height=800)
