@@ -42,7 +42,7 @@ with st.sidebar:
 def get_all_places(location, radius, search_type=None, keyword=None):
     places = {}
     next_page_token = None
-    while True:  # Eliminar la restricción de 10 lugares
+    while True:
         try:
             if next_page_token:
                 time.sleep(2)
@@ -109,20 +109,19 @@ if st.button("🚀 Iniciar Búsqueda (Modo Interactivo)"):
         for place in all_places.values():
             lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
             heatmap_data.append([lat, lon])
+            color, icon = "gray", "info-sign"
+            category_name = ', '.join(place.get("types", [])) if place.get("types") else "Desconocido"
+            
             for key, info in categories.items():
                 if (info.get("type") == place.get("types", [None])[0]) or (info.get("keyword") and info["keyword"].lower() in place["name"].lower()):
                     if not selected_categories[key]:
                         continue  # Omitir si está desactivado
-                    color = info["color"]
-                    icon = info["icon"]
+                    color, icon = info["color"], info["icon"]
                     break
-            else:
-                color = "gray"
-                icon = "info-sign"
-
+            
             folium.Marker(
                 [lat, lon],
-                popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}",
+                popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')} - Categoría: {category_name}",
                 icon=folium.Icon(color=color, icon=icon, prefix='fa')
             ).add_to(marker_cluster)
 
