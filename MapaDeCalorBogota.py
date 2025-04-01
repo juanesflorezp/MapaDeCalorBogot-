@@ -12,7 +12,7 @@ st.title("📍 Mapa de Lugares en Bogotá — Modo Interactivo")
 
 # Cargar API Key
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
 if not API_KEY:
     st.error("API Key no encontrada.")
     st.stop()
@@ -22,7 +22,7 @@ gmaps = googlemaps.Client(key=API_KEY)
 # --- Configuración ---
 ubicacion_ciudad = [4.6805, -74.0451]  # Zona Parque El Virrey
 radio = 700  # 700 metros
-grid_size = 2  # 2x2 cuadrantes (10 puntos máximo)
+grid_size = 2  # 2x2 cuadrantes (pequeña área para prueba)
 
 categories = {
     "restaurant": {"type": "restaurant", "color": "red", "icon": "utensils"},
@@ -42,8 +42,7 @@ with st.sidebar:
 def get_all_places(location, radius, search_type=None, keyword=None):
     places = {}
     next_page_token = None
-    count = 0
-    while count < 10:  # Limitar a 10 resultados
+    while True:  # Eliminar la restricción de 10 lugares
         try:
             if next_page_token:
                 time.sleep(2)
@@ -56,9 +55,6 @@ def get_all_places(location, radius, search_type=None, keyword=None):
                 )
             for place in results.get("results", []):
                 places[place["place_id"]] = place
-                count += 1
-                if count >= 10:
-                    break
             next_page_token = results.get("next_page_token")
             if not next_page_token:
                 break
@@ -76,8 +72,6 @@ def generar_grid(centro, distancia, puntos):
             lat = lat_centro + i * delta
             lon = lon_centro + j * delta
             grid.append((lat, lon))
-            if len(grid) >= 10:
-                return grid  # Limitar la cantidad de puntos en la cuadrícula
     return grid
 
 if st.button("🚀 Iniciar Búsqueda (Modo Interactivo)"):
@@ -90,7 +84,7 @@ if st.button("🚀 Iniciar Búsqueda (Modo Interactivo)"):
         total = len(grid) * len(categories)
 
         heatmap_data = []
-        mapa = folium.Map(location=ubicacion_ciudad, zoom_start=13, width='100%', height='800px')
+        mapa = folium.Map(location=ubicacion_ciudad, zoom_start=15, width='100%', height='800px')
         marker_cluster = MarkerCluster().add_to(mapa)
 
         count = 0
@@ -108,10 +102,6 @@ if st.button("🚀 Iniciar Búsqueda (Modo Interactivo)"):
                     all_places[place["place_id"]] = place
                 count += 1
                 progress.progress(count / total)
-                if count >= 10:
-                    break
-            if count >= 10:
-                break
 
         progress.empty()
         st.success(f"✅ {len(all_places)} lugares encontrados (sin duplicados)")
