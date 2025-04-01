@@ -12,7 +12,7 @@ st.title("📍 Mapa de Lugares en Bogotá — Modo Interactivo")
 
 # Cargar API Key
 load_dotenv()
-API_KEY = os.getenv("GOOGLE_MAPS_API_KEY")
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" 
 if not API_KEY:
     st.error("API Key no encontrada.")
     st.stop()
