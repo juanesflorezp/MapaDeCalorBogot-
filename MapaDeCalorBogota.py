@@ -22,7 +22,7 @@ gmaps = googlemaps.Client(key=API_KEY)
 # --- Configuración ---
 ubicacion_ciudad = [4.6805, -74.0451]  # Zona Parque El Virrey (Bogotá)
 radio = 700  # Radio de 700 metros
-grid_size = 6  # 6x6 cuadrantes (36 puntos)
+grid_size = 12  # Aumentamos los cuadrantes a 12x12 (144 puntos)
 
 categories = {
     "restaurant": {"type": "restaurant", "color": "red", "icon": "utensils"},
@@ -74,10 +74,10 @@ def generar_grid(centro, distancia, puntos):
             grid.append((lat, lon))
     return grid
 
-if st.button("🚀 Iniciar Búsqueda (Modo Interactivo)"):
+if st.button("🚀 Iniciar Búsqueda (Modo Extendido)"):
     with st.spinner("Buscando en múltiples cuadrantes..."):
         grid = generar_grid(ubicacion_ciudad, radio * 1.5, grid_size)
-        st.write(f"Buscando en {len(grid)} puntos. Esto puede tomar unos minutos...")
+        st.write(f"Buscando en {len(grid)} puntos. Esto puede tomar un tiempo...")
 
         all_places = {}
         progress = st.progress(0)
