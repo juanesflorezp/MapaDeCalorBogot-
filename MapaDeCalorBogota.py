@@ -8,11 +8,12 @@ from folium.plugins import HeatMap, MarkerCluster
 import os
 
 st.set_page_config(page_title="Mapa Lugares Bogotá", layout="wide")
-st.title("📍 Mapa de Lugares en Bogotá — Modo Interactivo")
+st.title("📍 Mapa de Lugares en Bogotá — Modo Turbo")
 
 # Cargar API Key
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw" 
+API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+
 if not API_KEY:
     st.error("API Key no encontrada.")
     st.stop()
@@ -20,9 +21,10 @@ if not API_KEY:
 gmaps = googlemaps.Client(key=API_KEY)
 
 # --- Configuración ---
-ubicacion_ciudad = [4.6805, -74.0451]  # Zona Parque El Virrey (Bogotá)
-radio = 700  # Radio de 700 metros
-grid_size = 12  # Aumentamos los cuadrantes a 12x12 (144 puntos)
+ubicacion_ciudad_1 = [4.6765, -74.0488]  # Zona Parque de la 93 (Bogotá)
+ubicacion_ciudad_2 = [4.5970, -74.0830]  # Centro de Bogotá (Plaza de Bolívar)
+radio = 10000  # 10 km de radio
+grid_size = 6  # 6x6 cuadrantes (36 puntos)
 
 categories = {
     "restaurant": {"type": "restaurant", "color": "red", "icon": "utensils"},
@@ -32,32 +34,37 @@ categories = {
     "transmilenio": {"keyword": "Estación TransMilenio", "color": "orange", "icon": "bus"}
 }
 
-# Checkboxes para activar/desactivar categorías
-selected_categories = {}
-with st.sidebar:
-    st.header("🔍 Filtros de Categoría")
-    for key in categories:
-        selected_categories[key] = st.checkbox(key.capitalize(), True)
+# --- FUNCIONES ---
 
 def get_all_places(location, radius, search_type=None, keyword=None):
     places = {}
     next_page_token = None
-    while True:  # Eliminar la restricción de 10 lugares
+    while True:
         try:
+            # Recorremos todas las páginas de resultados sin limitar
             if next_page_token:
-                time.sleep(2)
+                time.sleep(2)  # Retardo entre páginas para no exceder el límite de la API
                 results = gmaps.places_nearby(
-                    location=location, radius=radius, type=search_type, keyword=keyword, page_token=next_page_token
+                    location=location,
+                    radius=radius,
+                    type=search_type,
+                    keyword=keyword,
+                    page_token=next_page_token
                 )
             else:
                 results = gmaps.places_nearby(
-                    location=location, radius=radius, type=search_type, keyword=keyword
+                    location=location,
+                    radius=radius,
+                    type=search_type,
+                    keyword=keyword
                 )
+
             for place in results.get("results", []):
-                places[place["place_id"]] = place
+                places[place["place_id"]] = place  # Agregamos los lugares a la lista
+
             next_page_token = results.get("next_page_token")
             if not next_page_token:
-                break
+                break  # Si no hay más páginas, terminamos la búsqueda
         except Exception as e:
             st.warning(f"Error buscando '{keyword or search_type}': {e}")
             break
@@ -67,6 +74,7 @@ def generar_grid(centro, distancia, puntos):
     lat_centro, lon_centro = centro
     grid = []
     delta = distancia / 111000  # Aproximado: 1° lat ~ 111 km
+
     for i in range(-puntos, puntos + 1):
         for j in range(-puntos, puntos + 1):
             lat = lat_centro + i * delta
@@ -74,24 +82,29 @@ def generar_grid(centro, distancia, puntos):
             grid.append((lat, lon))
     return grid
 
-if st.button("🚀 Iniciar Búsqueda (Modo Extendido)"):
+if st.button("🚀 Iniciar Búsqueda (Modo Turbo)"):
     with st.spinner("Buscando en múltiples cuadrantes..."):
-        grid = generar_grid(ubicacion_ciudad, radio * 1.5, grid_size)
-        st.write(f"Buscando en {len(grid)} puntos. Esto puede tomar un tiempo...")
+        # Generar la cuadrícula para el área del Parque de la 93
+        grid_1 = generar_grid(ubicacion_ciudad_1, radio * 1.5, grid_size)
+        # Generar la cuadrícula para el área del centro de Bogotá
+        grid_2 = generar_grid(ubicacion_ciudad_2, radio * 1.5, grid_size)
+
+        # Combinar las cuadrículas
+        grid = grid_1 + grid_2
+
+        st.write(f"Buscando en {len(grid)} puntos. Esto puede tomar unos minutos...")
 
         all_places = {}
         progress = st.progress(0)
         total = len(grid) * len(categories)
 
         heatmap_data = []
-        mapa = folium.Map(location=ubicacion_ciudad, zoom_start=13, width='100%', height='800px')
+        mapa = folium.Map(location=ubicacion_ciudad_1, zoom_start=12, width='100%', height='800px')
         marker_cluster = MarkerCluster().add_to(mapa)
 
         count = 0
         for (lat, lon) in grid:
             for key, info in categories.items():
-                if not selected_categories[key]:
-                    continue  # Omitir categorías desactivadas
                 places = get_all_places(
                     location=(lat, lon),
                     radius=radio,
@@ -109,19 +122,18 @@ if st.button("🚀 Iniciar Búsqueda (Modo Extendido)"):
         for place in all_places.values():
             lat, lon = place["geometry"]["location"]["lat"], place["geometry"]["location"]["lng"]
             heatmap_data.append([lat, lon])
-            color, icon = "gray", "info-sign"
-            category_name = ', '.join(place.get("types", [])) if place.get("types") else "Desconocido"
-            
             for key, info in categories.items():
                 if (info.get("type") == place.get("types", [None])[0]) or (info.get("keyword") and info["keyword"].lower() in place["name"].lower()):
-                    if not selected_categories[key]:
-                        continue  # Omitir si está desactivado
-                    color, icon = info["color"], info["icon"]
+                    color = info["color"]
+                    icon = info["icon"]
                     break
-            
+            else:
+                color = "gray"
+                icon = "info-sign"
+
             folium.Marker(
                 [lat, lon],
-                popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')} - Categoría: {category_name}",
+                popup=f"{place['name']} - Rating: {place.get('rating', 'N/A')}",
                 icon=folium.Icon(color=color, icon=icon, prefix='fa')
             ).add_to(marker_cluster)
 
