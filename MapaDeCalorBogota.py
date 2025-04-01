@@ -20,8 +20,8 @@ if not API_KEY:
 gmaps = googlemaps.Client(key=API_KEY)
 
 # --- Configuración ---
-ubicacion_ciudad = [4.6805, -74.0451]  # Zona Parque El Virrey
-radio = 700  # 700 metros
+ubicacion_ciudad = [4.6765, -74.0488]  # Zona Parque de la 93
+radio = 500  # Reducir a 500 metros para un área más pequeña
 grid_size = 2  # 2x2 cuadrantes (pequeña área para prueba)
 
 categories = {
@@ -84,7 +84,7 @@ if st.button("🚀 Iniciar Búsqueda (Modo Interactivo)"):
         total = len(grid) * len(categories)
 
         heatmap_data = []
-        mapa = folium.Map(location=ubicacion_ciudad, zoom_start=15, width='100%', height='800px')
+        mapa = folium.Map(location=ubicacion_ciudad, zoom_start=16, width='100%', height='800px')
         marker_cluster = MarkerCluster().add_to(mapa)
 
         count = 0
