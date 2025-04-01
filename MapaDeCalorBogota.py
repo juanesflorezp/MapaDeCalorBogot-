@@ -34,6 +34,12 @@ categories = {
     "transmilenio": {"keyword": "Estación TransMilenio", "color": "orange", "icon": "bus"}
 }
 
+# --- Barra lateral con checkboxes para filtrar categorías ---
+st.sidebar.header("🔍 Filtros de Categoría")
+selected_categories = {}
+for key in categories:
+    selected_categories[key] = st.sidebar.checkbox(key.capitalize(), True)
+
 # --- FUNCIONES ---
 
 def get_all_places(location, radius, search_type=None, keyword=None):
@@ -41,7 +47,6 @@ def get_all_places(location, radius, search_type=None, keyword=None):
     next_page_token = None
     while True:
         try:
-            # Recorremos todas las páginas de resultados sin limitar
             if next_page_token:
                 time.sleep(2)  # Retardo entre páginas para no exceder el límite de la API
                 results = gmaps.places_nearby(
@@ -105,6 +110,8 @@ if st.button("🚀 Iniciar Búsqueda (Modo Turbo)"):
         count = 0
         for (lat, lon) in grid:
             for key, info in categories.items():
+                if not selected_categories[key]:
+                    continue  # Omitir categorías desactivadas
                 places = get_all_places(
                     location=(lat, lon),
                     radius=radio,
