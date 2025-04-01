@@ -21,9 +21,7 @@ gmaps = googlemaps.Client(key=API_KEY)
 
 # --- Configuración ---
 ubicacion_ciudad = [4.6765, -74.0488]  # Zona Parque de la 93
-radio = 500  # Reducir a 500 metros para un área más pequeña
-grid_size = 2  # 2x2 cuadrantes (pequeña área para prueba)
-
+radio = 500  # Radio de 500 metros
 categories = {
     "restaurant": {"type": "restaurant", "color": "red", "icon": "utensils"},
     "bar": {"type": "bar", "color": "purple", "icon": "cocktail"},
@@ -42,7 +40,7 @@ with st.sidebar:
 def get_all_places(location, radius, search_type=None, keyword=None):
     places = {}
     next_page_token = None
-    while True:
+    while True:  # Eliminar la restricción de 10 lugares
         try:
             if next_page_token:
                 time.sleep(2)
@@ -63,45 +61,30 @@ def get_all_places(location, radius, search_type=None, keyword=None):
             break
     return list(places.values())
 
-def generar_grid(centro, distancia, puntos):
-    lat_centro, lon_centro = centro
-    grid = []
-    delta = distancia / 111000  # Aproximado: 1° lat ~ 111 km
-    for i in range(-puntos, puntos + 1):
-        for j in range(-puntos, puntos + 1):
-            lat = lat_centro + i * delta
-            lon = lon_centro + j * delta
-            grid.append((lat, lon))
-    return grid
-
 if st.button("🚀 Iniciar Búsqueda (Modo Interactivo)"):
-    with st.spinner("Buscando en múltiples cuadrantes..."):
-        grid = generar_grid(ubicacion_ciudad, radio * 1.5, grid_size)
-        st.write(f"Buscando en {len(grid)} puntos. Esto puede tomar unos minutos...")
-
+    with st.spinner("Buscando lugares en 500 metros..."):
         all_places = {}
         progress = st.progress(0)
-        total = len(grid) * len(categories)
+        total = len(categories)
 
         heatmap_data = []
         mapa = folium.Map(location=ubicacion_ciudad, zoom_start=16, width='100%', height='800px')
         marker_cluster = MarkerCluster().add_to(mapa)
 
         count = 0
-        for (lat, lon) in grid:
-            for key, info in categories.items():
-                if not selected_categories[key]:
-                    continue  # Omitir categorías desactivadas
-                places = get_all_places(
-                    location=(lat, lon),
-                    radius=radio,
-                    search_type=info.get("type"),
-                    keyword=info.get("keyword")
-                )
-                for place in places:
-                    all_places[place["place_id"]] = place
-                count += 1
-                progress.progress(count / total)
+        for key, info in categories.items():
+            if not selected_categories[key]:
+                continue  # Omitir categorías desactivadas
+            places = get_all_places(
+                location=ubicacion_ciudad,
+                radius=radio,
+                search_type=info.get("type"),
+                keyword=info.get("keyword")
+            )
+            for place in places:
+                all_places[place["place_id"]] = place
+            count += 1
+            progress.progress(count / total)
 
         progress.empty()
         st.success(f"✅ {len(all_places)} lugares encontrados (sin duplicados)")
