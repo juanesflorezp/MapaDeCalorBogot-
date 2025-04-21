@@ -12,7 +12,7 @@ st.title("📍 Mapa de Lugares en Bogotá — Modo Turbo")
 
 # Cargar API Key
 load_dotenv()
-API_KEY = "AIzaSyAfKQcxysKHp0qSrKIlBj6ZXnF1x-McWtw"
+API_KEY = 
 
 if not API_KEY:
     st.error("API Key no encontrada.")
